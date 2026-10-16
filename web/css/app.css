@@ -465,6 +465,7 @@ line[class*="g-rel-"] { stroke: var(--rel); }
   .pos-row { flex-wrap: wrap; }
   .pos-row .arrow { display: none; }
   .pos-row [name=ref] { min-width: 120px; }
+  .ai-actions { margin-top: 0; }
   .card-actions { position: sticky; bottom: 0; background: linear-gradient(to top, var(--bg) 75%, transparent); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); margin: 0; }
   input, textarea, select { font-size: 16px; } /* stop iOS zooming into fields */
   .modal-wrap { align-items: end; padding: 0; }
