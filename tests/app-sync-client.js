@@ -1,6 +1,6 @@
 // LAN sync between two running apps, the side where the user taps 同步 (see app-sync-host.js):
 //   ZK_DATA_DIR=/tmp/zk-client ZK_SYNC_NO_BONJOUR=1 ZK_DEVICE_NAME=客户端 ZK_SELFTEST=$PWD/tests/app-sync-client.js <app>
-// Pairs with the host on 127.0.0.1:51517, syncs, edits and deletes, syncs again and checks
+// Pairs with the host on HOST (prepended by the test runner; default 127.0.0.1:51517), syncs, edits and deletes, syncs again and checks
 // the result on this side; the host's report is checked by scripts/sync-selftest.sh.
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let i = 0; i < 100 && !document.querySelector('#list'); i++) await wait(50);
@@ -8,6 +8,7 @@ const store = await import('./js/store.js');
 const sync = await import('./js/sync.js');
 const backend = await import('./js/backend.js');
 const assert = (ok, msg) => { if (!ok) throw new Error(msg); };
+const address = typeof HOST === 'string' ? HOST : '127.0.0.1:51517';
 
 // the same ID as a card on the host: one of them has to move
 await store.run('create', { uid: 'c-1', kind: 'note', zid: '1', title: '客户端的 1', body: '客户端写的' });
@@ -15,7 +16,7 @@ await store.run('create', { uid: 'c-2', kind: 'fleeting', title: '客户端的�
 
 let conn;
 for (let i = 0; i < 60 && !conn; i++) {
-  try { conn = await sync.connect({ address: '127.0.0.1:51517' }); } catch { await wait(500); }
+  try { conn = await sync.connect({ address }); } catch { await wait(500); }
 }
 assert(conn, 'cannot connect to the host');
 const out = { platform: backend.platform, firstPaired: conn.paired, code: /^\d{6}$/.test(conn.code), peer: conn.peer.name };
@@ -40,7 +41,7 @@ await store.run('update', 'h-3', { body: '客户端改过的闪念' });
 await store.run('update', 'c-1', { body: '客户端第二次写的' });
 await store.run('remove', 'h-2');
 await store.purge(['h-2']);
-conn = await sync.connect({ address: '127.0.0.1:51517' });
+conn = await sync.connect({ address });
 out.secondPaired = conn.paired;
 plan = await sync.plan(conn);
 out.plan2 = plan.rows.map((r) => `${r.action}:${r.local}`).sort();

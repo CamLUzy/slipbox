@@ -27,6 +27,7 @@ jobs:
 
   windows:
     name: Windows app
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,14 +69,17 @@ jobs:
           # the same test as scripts/sync-selftest.sh: a host and a client on 127.0.0.1
           function Start-Instance($role, $extra) {
             $env:ZK_DATA_DIR = Join-Path $env:RUNNER_TEMP "sync-$role"
-            $env:ZK_SELFTEST = Join-Path $PWD "tests\app-sync-$role.js"
+            $env:ZK_SELFTEST = if ($role -eq 'client') { $clientScript } else { Join-Path $PWD "tests\app-sync-$role.js" }
             $env:ZK_SELFTEST_OUT = Join-Path $env:RUNNER_TEMP "sync-$role.out"
             $env:ZK_SYNC_NO_BONJOUR = '1'
             $env:ZK_DEVICE_NAME = $extra.name
             $env:ZK_SYNC_PORT = $extra.port
             return Start-Process -FilePath src-tauri\target\release\Slipbox.exe -PassThru
           }
-          $hostApp = Start-Instance 'host' @{ name = '主机'; port = '51517' }
+          $port = Get-Random -Minimum 52000 -Maximum 56000
+          $clientScript = Join-Path $env:RUNNER_TEMP 'sync-client.js'
+          Set-Content -Path $clientScript -Encoding utf8 -Value ("const HOST = '127.0.0.1:$port';`n" + (Get-Content tests\app-sync-client.js -Raw -Encoding utf8))
+          $hostApp = Start-Instance 'host' @{ name = '主机'; port = "$port" }
           $client = Start-Instance 'client' @{ name = '客户端'; port = '' }
           foreach ($p in @($client, $hostApp)) { if (-not $p.WaitForExit(240000)) { $p.Kill(); throw 'sync self-test timed out' } }
           $c = Join-Path $env:RUNNER_TEMP 'sync-client.out'
@@ -101,6 +105,7 @@ jobs:
 
   macos:
     name: macOS app
+    timeout-minutes: 45
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,6 +161,7 @@ jobs:
 
   ios:
     name: iOS app
+    timeout-minutes: 45
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

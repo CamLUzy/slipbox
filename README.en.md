@@ -33,6 +33,8 @@ register gave entry points into trains of thought. Slipbox brings exactly that t
   one and the other acts as host. Direct, end-to-end encrypted (Noise XX), paired once by comparing
   a 6-digit code; edits on both sides keep the newer version and file the older one as a conflict
   copy. See [docs/SYNC.md](docs/SYNC.md).
+- A writing log like GitHub's contribution graph (one square per day), streaks, milestones and
+  "on this day" cards from a week, a month and a year ago.
 - One SQLite file per slip box, the same format on every platform, daily backups, JSON and
   Markdown export. No account, no server, no telemetry.
 

@@ -23,5 +23,6 @@ shot card light card.js "document.querySelector('.sheet-head')"
 shot organize light organize.js "document.querySelector('.ai-result')"
 shot map dark map.js "(() => { const svg = document.querySelector('#map-box svg.graph'); const n = svg && [...svg.querySelectorAll('.g-node')].find((g) => g.querySelector('.g-id')?.textContent === '3'); if (!n) return false; svg.classList.add('g-focus'); n.classList.add('hl', 'hl-center'); for (const l of svg.querySelectorAll('.g-edge')) if (l.dataset.a === n.dataset.uid || l.dataset.b === n.dataset.uid) { l.classList.add('hl'); svg.querySelector('.g-node[data-uid=\"' + (l.dataset.a === n.dataset.uid ? l.dataset.b : l.dataset.a) + '\"]')?.classList.add('hl'); } return true; })()"
 shot chat light chat.js "document.querySelector('.msg.bot .msg-tools')"
+shot stats light stats.js "document.querySelector('.milestones')" 1280 900
 INJECT=1 shot sync light sync.js "document.querySelector('.sync-result') && !document.querySelector('.toast')"
 curl -s localhost:11434/api/generate -d '{"model":"qwen3.5:4b","keep_alive":0}' >/dev/null || true

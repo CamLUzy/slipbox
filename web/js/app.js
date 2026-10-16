@@ -8,6 +8,7 @@ import * as aiv from './aiview.js';
 import * as ai from './ai.js';
 import * as sync from './sync.js';
 import * as syncv from './syncview.js';
+import * as av from './activityview.js';
 import { esc, uuid, timeAgo, fmtDate, debounce, splitKeywords, firstLine, lsGet, lsSet } from './util.js';
 
 // Shortcut labels: ⌘ on the Mac, Ctrl+ elsewhere.
@@ -75,10 +76,13 @@ async function boot() {
   }
   aiv.setup({ cardRow, linkCtx, toast, openModal, cardHref, titleOf, label, boxKey });
   syncv.setup({ toast });
+  av.setup({ cardRow });
   // a sync wrote into the open slip box (on either device): show the new cards
   sync.onEvent((e) => { if (e.type === 'changed' && e.box === ui.box) open().catch(() => {}); });
   renderShell();
   onChange(onStoreChange);
+  av.cheer(toast); // remembers whether today already has a card
+  onChange(() => av.cheer(toast));
   window.addEventListener('hashchange', route);
   document.addEventListener('keydown', onKey);
   route();
@@ -207,6 +211,8 @@ function renderMain() {
     case 'settings': html = viewSettings(); break;
     case 'trash': html = viewTrash(); break;
     case 'sync': html = syncv.view(); break;
+    case 'stats': html = av.viewStats(); break;
+    case 'day': html = av.viewDay(a); break;
     default: html = viewHome();
   }
   main.innerHTML = topbar() + html;
@@ -402,7 +408,7 @@ function viewHome() {
       ${ix.notes.length ? '<button type="button" data-act="random">随机漫步</button>' : ''}
       <a class="btn ai-btn" href="#/ai">✦ AI 助手</a>
     </div>
-    ${empty ? guide() : ''}
+    ${empty ? guide() : av.homeSection() + av.onThisDaySection()}
     ${recent.length ? `<section><h2>最近修改</h2><div class="rows">${recent.map((c) => cardRow(c, `<span class="row-meta">${timeAgo(c.updatedAt)}</span>`)).join('')}</div></section>` : ''}
     ${ix.fleeting.length ? `<section><h2>收件箱待整理 <a class="more" href="#/list/inbox">全部 ${ix.fleeting.length}</a></h2><div class="rows">${ix.fleeting.slice(0, 5).map((c) => cardRow(c)).join('')}</div></section>` : ''}
     ${noEntry.length ? `<section><h2>缺少入口的主题</h2><p class="muted small">这些主题卡片既没有关键词，也没有被其他卡片引用，只能靠翻阅找到。给它们加个关键词吧。</p><div class="rows">${noEntry.map((c) => cardRow(c)).join('')}</div></section>` : ''}
@@ -548,6 +554,10 @@ function viewSettings() {
       <p class="muted small">在同一个 Wi-Fi 下的电脑、iPhone 之间同步卡片盒：两台设备都打开“设备与同步”，在其中一台上点“同步”。</p>
       <div class="actions"><a class="btn" href="#/sync">打开设备与同步</a></div>
     </section>` : ''}
+    <section><h2>写作记录</h2>
+      <p class="muted small">像 GitHub 的提交记录一样，一格一天，看看自己多久写一次卡片、连续写了几天。</p>
+      <div class="actions"><a class="btn" href="#/stats">打开写作记录</a></div>
+    </section>
     <section><h2>数据</h2>
       <dl class="kv">
         <dt>卡片盒</dt><dd>${esc(ui.box)}</dd>
