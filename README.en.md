@@ -26,8 +26,14 @@ register gave entry points into trains of thought. Slipbox brings exactly that t
 - Relation graphs with hover highlighting, and an optional local AI through
   [Ollama](https://ollama.com) (`qwen3.5:4b` by default) that suggests how to turn a note into a
   permanent card, how cards relate, and answers questions citing your cards. The model is only
-  loaded when you click an AI button, and the app only talks to Ollama on `localhost`.
-- One SQLite file per slip box, the same format on macOS and Windows, daily backups, JSON and
+  loaded when you click an AI button, and the app only talks to Ollama on `localhost`. Without
+  Ollama, the app installs it (and the model) in one click on macOS and Windows; on macOS / iOS 26
+  with Apple Intelligence it can use Apple's on-device model instead, with nothing to install.
+- LAN sync between any two devices (Windows, Mac, iPhone): open *设备与同步* on both, tap *同步* on
+  one and the other acts as host. Direct, end-to-end encrypted (Noise XX), paired once by comparing
+  a 6-digit code; edits on both sides keep the newer version and file the older one as a conflict
+  copy. See [docs/SYNC.md](docs/SYNC.md).
+- One SQLite file per slip box, the same format on every platform, daily backups, JSON and
   Markdown export. No account, no server, no telemetry.
 
 <table align="center">

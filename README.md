@@ -58,13 +58,23 @@ AI 只在你点 AI 按钮时才在本机启动，它可以帮你整理闪念、�
 - 鼠标放到任意节点上，无关的卡片淡出，相关的高亮。
 - AI 梳理整个卡片盒：给每个主题序列起名，找出内容相关却还没链接的卡片对，按主题上色画成一张图。
 
+**多端同步**
+
+- Windows、Mac、iPhone 之间局域网同步：两台设备都打开“设备与同步”，在其中一台点“同步”，另一台当主机。
+- 设备之间直连、全程加密，不经过服务器，不需要账号；第一次核对一组 6 位数字完成配对。
+- 两边都改过的卡片保留较新的一份，另一份放进收件箱当“冲突副本”；同步前两边自动备份。见 [多端互联](docs/SYNC.md)。
+
+<p align="center"><img src="assets/screenshots/sync.png" alt="设备与同步：和 iPhone 同步后的摘要" width="640"><br><sub>设备与同步：点一下“同步”，摘要里写清楚两边各变了什么</sub></p>
+
 **本地 AI（可选）**
 
 - 用 [Ollama](https://ollama.com) 在本机运行，默认模型 `qwen3.5:4b`（约 3.3 GB）。只在点击时加载，闲置自动释放内存，界面实时显示状态。
+- 没装 Ollama？应用里点一下“一键安装 Ollama 和模型”，自动下载、安装、启动，显示进度。
+- macOS 26 / iOS 26 打开了 Apple 智能的设备，可以直接用系统自带的 Apple 端侧模型，什么都不用装；iPhone 默认用它。
 - AI 整理：把一条闪念改写成合格的永久卡片，建议标题、关键词、编号位置和应该链接的卡片。
 - AI 梳理联系：判断一张卡片和相近卡片的关系（支持、反驳、举例、延伸、前提、对比、相似）。
 - AI 助手：先从卡片盒里找出相关卡片，再根据它们回答。
-- 所有结果都只是建议，确认后才会写进卡片。应用只允许连接本机的 Ollama。
+- 所有结果都只是建议，确认后才会写进卡片。应用只允许连接本机的 Ollama（iPhone 上是局域网里的），卡片不会被发到互联网上。
 
 <p align="center"><img src="assets/screenshots/organize.png" alt="AI 整理一条闪念" width="640"><br><sub>AI 整理：把一条闪念改写成永久卡片，并建议它在卡片盒里的位置</sub></p>
 
@@ -86,6 +96,7 @@ AI 只在你点 AI 按钮时才在本机启动，它可以帮你整理闪念、�
 
 - 每个卡片盒是一个 SQLite 文件，Mac、Windows、iPhone 格式相同，可以直接拷过去用。
 - 每天自动备份，保留 30 份；随时导出 JSON 或一个文件夹的 Markdown（带 front matter，Obsidian 等可以打开）。
+- 换电脑时同步一次，所有卡片盒就都过去了。
 
 ## 下载与安装
 
@@ -135,7 +146,8 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 - **`apple/Shared/`** 是 Mac 和 iPhone 共用的 Swift 核心：SQLite、卡片盒、备份和 `zk` 消息桥。
 - **`mac/main.swift`** 是 macOS 外壳：窗口、菜单栏和存储面板，编译出来约 1 MB；**`ios/`** 是 iPhone / iPad 外壳：分享面板、文件选择器，数据放在“文件”App 里能看到的位置。
 - **`src-tauri/`** 是 Windows 外壳：Rust + Tauri 2，用系统自带的 WebView2 显示同一份界面。
-- 三个外壳回答同一套 `zk` 消息（读写卡片、管理卡片盒、备份、导出、AI 代理），所以界面代码在所有平台上完全一样。
+- 三个外壳回答同一套 `zk` 消息（读写卡片、管理卡片盒、备份、导出、AI 代理、同步），所以界面代码在所有平台上完全一样。
+- 局域网同步：外壳负责发现设备（Bonjour / mDNS）和加密连接（Noise 协议，Swift 用 CryptoKit 实现、Rust 用 `snow`，两边用同一组测试向量逐字节核对），合并规则写在共享的 `web/js/merge.js` 里。
 - 每个外壳都带一个无窗口的自测模式，CI 每次都会在真正的 Windows、macOS 和 iOS 模拟器里打开打包好的应用，跑一遍读写、改号、备份和页面渲染。
 
 ### 你的数据
@@ -158,8 +170,8 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 | 在 Windows 上安装、升级、卸载 | [Windows](docs/WINDOWS.md) |
 | 在 Mac 上安装或自己编译 | [macOS](docs/MAC.md) |
 | 装到 iPhone / iPad | [iPhone / iPad](docs/IOS.md) |
-| 了解多端同步的计划 | [多端互联](docs/SYNC.md) |
-| 打开本地 AI | [本地 AI](docs/AI.md) |
+| 在电脑和手机之间同步 | [多端互联](docs/SYNC.md) |
+| 打开本地 AI、一键安装 Ollama、用 Apple 端侧模型 | [本地 AI](docs/AI.md) |
 | 备份、导入导出、换电脑 | [数据](docs/DATA.md) |
 | 找常见问题的答案 | [FAQ](docs/FAQ.md) |
 | 参与开发 | [开发指南](docs/DEVELOPMENT.md) · [贡献](CONTRIBUTING.md) |
@@ -173,8 +185,9 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 |---|---|---|
 | v1.0.0 | 2026 年 10 月 | macOS 与 Windows 应用、多个卡片盒、本地 AI、关系图 |
 | v1.1.0 | 2026 年 10 月 | iPhone / iPad 应用 |
-| v1.2 | 下一个 | [局域网同步](docs/SYNC.md)：两台设备都开着，在一台上点“同步”，另一台当主机 |
-| 以后 | | 网盘文件夹远程同步、图片附件、卡片历史版本、向量检索的“可能相关的卡片” |
+| v1.2.0 | 2026 年 10 月 | [局域网同步](docs/SYNC.md)、Apple 端侧模型、一键安装 Ollama |
+| v1.3 | 下一个 | 图片附件、卡片历史版本 |
+| 以后 | | 网盘文件夹远程同步、向量检索的“可能相关的卡片”、英文界面 |
 
 ## 参与
 

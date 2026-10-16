@@ -37,6 +37,9 @@ docs/                    文档、示例卡片盒、架构图
 | `saveFile` / `openFile` / `exportFiles` | 文件名与内容 / – / `folder`, `files` | 是否保存 / 文件内容或 `null` / 导出目录或 `null` |
 | `ollama` | `id`, `base`, `path`, `body`, `stream` | `{status, text}` 或 `{error}`；流式时逐行调用 `window.zkStream(id, line)` |
 | `ollamaCancel` / `startOllama` | `id` / – | `true` / 是否已安装 |
+| `installOllama` | `id` | `{ok}` 或 `{error}`；进度 `{frac, text}` 逐条调用 `window.zkStream(id, …)`（macOS、Windows） |
+| `appleAI` | `op: status` 或 `op: generate`, `id`, `messages`, `schema`, `temperature` | `{available, reason}` / `{content}` 或 `{error}`（macOS、iOS） |
+| `sync` | `op`：`state` `start` `stop` `rename` `forget` `connect` `request` `trust` `answer` `close` `local` | 见 `web/js/sync.js`；事件通过 `window.zkSyncEvent(e)` 推给页面 |
 
 Windows 外壳另有 `title`（窗口标题跟随页面）、`openUrl`（用默认浏览器打开）和 `selftestResult`。新增原生能力时，Swift（`apple/Shared` + 平台的 `BridgeHost`）和 Rust 两边都要实现。
 
@@ -44,7 +47,8 @@ Windows 外壳另有 `title`（窗口标题跟随页面）、`openUrl`（用默�
 
 ```bash
 npm test                                          # 编号规则与数据操作（Node 22+）
-cargo test --manifest-path src-tauri/Cargo.toml   # Rust：卡片盒命名规则、数据库读写
+cargo test --manifest-path src-tauri/Cargo.toml   # Rust：卡片盒命名规则、数据库读写、Noise 测试向量
+swiftc apple/Shared/Noise.swift tests/noise/main.swift -o build/noise && build/noise   # Swift 的 Noise 与 Rust 逐字节一致
 ```
 
 两个外壳都有无窗口自测模式，在真正打包好的应用里跑一段脚本：
@@ -61,6 +65,8 @@ $env:ZK_DATA_DIR="$env:TEMP\zk"; $env:ZK_SELFTEST="$PWD\tests\app-selftest.js"; 
 - `tests/app-selftest.js`：读写、改号、永久删除、备份、页面渲染。
 - `tests/app-boxes-selftest.js`：新建、重命名、切换、删除卡片盒。
 - `tests/app-ai-selftest.js`：需要本机 Ollama，测试流式对话、整理、关系分析、中途停止和释放内存。
+- `tests/app-apple-ai-selftest.js`：Apple 端侧模型（macOS 26 并打开 Apple 智能）；没有模型时只报告原因。
+- 局域网同步：`bash scripts/sync-selftest.sh <主机应用> [<客户端应用>]` 在本机启动两个实例（各用一个数据目录），配对、同步两次、核对两边数据（`tests/app-sync-*.js`、`scripts/check-sync-selftest.mjs`）。两个参数可以是不同的应用，比如 Mac 应用和 `cargo build --features tauri/custom-protocol` 编出来的 Rust 版，用来检查两种实现能互通。
 
 iOS 版在模拟器里跑自测：用 `xcrun simctl launch` 并通过 `SIMCTL_CHILD_ZK_SELFTEST` 等环境变量传入，脚本要先拷进应用的数据容器（见 CI 配置）。
 
@@ -72,7 +78,7 @@ xcrun swiftc -parse-as-library -typecheck -target arm64-apple-ios16.0-macabi -sd
   -Fsystem $SDK/System/iOSSupport/System/Library/Frameworks apple/Shared/*.swift ios/Sources/*.swift
 ```
 
-CI（`.github/workflows/build.yml`）在每次提交时跑单元测试，在 Windows、macOS 和 iOS 模拟器里构建并对应用运行前两个自测，还会生成未签名的 `.ipa`；推送 `v*` 标签时自动发布 Release。
+CI（`.github/workflows/build.yml`）在每次提交时跑单元测试，在 Windows、macOS 和 iOS 模拟器里构建并对应用运行自测（包括 Windows ↔ Windows、Mac ↔ Mac、Mac ↔ Rust 的同步），检查 FoundationModels 是弱链接（老系统上也能打开），还会生成未签名的 `.ipa`；推送 `v*` 标签时自动发布 Release。
 
 ## 发布
 

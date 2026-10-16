@@ -6,6 +6,7 @@
 |---|---|
 | Windows | `%APPDATA%\卡片盒` |
 | macOS | `~/Library/Application Support/卡片盒` |
+| iPhone / iPad | “文件”App → 我的 iPhone → 卡片盒 |
 
 ```
 卡片盒/
@@ -14,6 +15,7 @@
 │  └─ 课程笔记.db
 ├─ backups/
 │  └─ 我的卡片盒/zettel-2026-10-16-093000.db   每天一份，保留 30 份
+├─ sync.json                  这台设备的同步身份（名称、密钥）和已配对的设备
 └─ settings.json              （Windows）上次打开的卡片盒
 ```
 
@@ -21,7 +23,9 @@
 
 ## 数据库格式
 
-表 `cards`，每张卡片一行：`uid`、`zid`（编号或文献键）、`kind`（`note` / `fleeting` / `literature`）、`title`、`body`（Markdown）、`keywords`（JSON 数组）、`deleted`、`created_at`、`updated_at`，以及 `data`（这张卡片完整的 JSON）。Mac 和 Windows 完全一样，可以用任何 SQLite 工具打开查看。
+表 `cards`，每张卡片一行：`uid`、`zid`（编号或文献键）、`kind`（`note` / `fleeting` / `literature`）、`title`、`body`（Markdown）、`keywords`（JSON 数组）、`deleted`、`created_at`、`updated_at`，以及 `data`（这张卡片完整的 JSON）。Mac、Windows、iPhone 完全一样，可以用任何 SQLite 工具打开查看。
+
+同步用到另外两张表：`meta`（`boxId`：同一个卡片盒在各台设备上的身份；`sync.<设备 ID>`：上次和那台设备同步的时间）和 `purged`（永久删除的卡片 `uid` 与时间，让同步不会把它们“复活”）。
 
 ## 备份与恢复
 
@@ -36,4 +40,6 @@
 
 ## 换电脑、Mac 与 Windows 之间
 
-把整个 `卡片盒` 文件夹拷到新电脑的对应位置即可；只想带走一个卡片盒，就拷 `boxes/<名字>.db`。也可以导出 JSON 再在新电脑上导入。
+最简单的是用 [局域网同步](SYNC.md)：新旧设备连同一个 Wi-Fi，同步一次，所有卡片盒都会过去。
+
+也可以把整个 `卡片盒` 文件夹拷到新电脑的对应位置（拷完删掉新电脑上的 `sync.json`，否则两台设备的同步身份相同）；只想带走一个卡片盒，就拷 `boxes/<名字>.db`。或者导出 JSON 再在新电脑上导入。

@@ -124,7 +124,7 @@ jobs:
       - name: Apple model is optional (FoundationModels weak-linked for macOS 12–15)
         run: |
           bin="dist/卡片盒.app/Contents/MacOS/Zettelkasten"
-          otool -l "$bin" | grep -B1 -A2 FoundationModels || echo "built without FoundationModels"
+          otool -l "$bin" | grep -B2 -A1 FoundationModels || { echo "FoundationModels not linked"; exit 1; }
           if otool -l "$bin" | grep -B2 FoundationModels | grep -q 'cmd LC_LOAD_DYLIB$'; then echo "FoundationModels is linked strongly"; exit 1; fi
       - name: Noise test vectors (the same as the Windows app's)
         run: |
@@ -170,9 +170,15 @@ jobs:
             -derivedDataPath build/ios-sim CODE_SIGNING_ALLOWED=NO -quiet build
       - name: Apple model is optional (FoundationModels weak-linked for iOS 16–18)
         run: |
-          bin=$(find build/ios-sim -path '*Slipbox.app/Slipbox' -type f | head -1)
-          otool -l "$bin" | grep -B1 -A2 FoundationModels
-          if otool -l "$bin" | grep -B2 FoundationModels | grep -q 'cmd LC_LOAD_DYLIB$'; then echo "FoundationModels is linked strongly"; exit 1; fi
+          # Debug builds keep the code in Slipbox.debug.dylib next to a small launcher
+          app=$(find build/ios-sim -name Slipbox.app -type d | head -1)
+          found=0
+          for bin in "$app/Slipbox" "$app"/*.dylib; do
+            [ -f "$bin" ] || continue
+            if otool -l "$bin" | grep -B2 FoundationModels | grep -q 'cmd LC_LOAD_DYLIB$'; then echo "$bin links FoundationModels strongly"; exit 1; fi
+            if otool -l "$bin" | grep -B2 FoundationModels | grep -q 'cmd LC_LOAD_WEAK_DYLIB$'; then echo "$bin: FoundationModels weak"; found=1; fi
+          done
+          [ $found = 1 ] || { echo "FoundationModels not linked"; exit 1; }
       - name: Self-test in the iOS simulator
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "

@@ -3,6 +3,7 @@
 //
 //   swiftc -O scripts/snap.swift -o build/snap -framework Cocoa -framework WebKit
 //   build/snap --url URL --out file.png [--width 1280] [--height 800]
+//              [--inject inject.js]    run before the page's own scripts, on every load
 //              [--setup setup.js]      run once after the first load, then reload the page
 //              [--script script.js]    run after the (final) load
 //              [--wait-for "js expr"]  poll until the expression is true
@@ -40,6 +41,9 @@ final class Snapper: NSObject, WKNavigationDelegate {
     override init() {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
+        if let inject = read("inject") {
+            config.userContentController.addUserScript(WKUserScript(source: inject, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: width, height: height), configuration: config)
         // An off-screen window keeps WebKit painting without showing anything on the display.
         window = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: width, height: height),

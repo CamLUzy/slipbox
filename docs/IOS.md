@@ -48,13 +48,15 @@ open Slipbox.xcodeproj
 └─ 已删除的卡片盒/            删除的卡片盒先放这里，可以拖回 boxes/ 恢复
 ```
 
-所以可以直接用“文件”App、AirDrop 或网盘把 `.db` 文件在 iPhone 和电脑之间拷来拷去。设备之间一键同步的计划见 [多端互联](SYNC.md)。
+和电脑之间同步最方便的是 [局域网同步](SYNC.md)：iPhone 和电脑都打开 **设置 → 设备与同步**，在一台上点“同步”。也可以用“文件”App、AirDrop 或网盘把 `.db` 文件拷来拷去。
 
 导入导出：**设置与数据 → 导出 JSON** 会打开分享面板（可以存到“文件”或 AirDrop 给电脑）；**从 JSON 导入** 会打开文件选择器。
 
 ## 本地 AI
 
-iPhone 上跑不了 Ollama，但可以用同一个 Wi-Fi 下电脑上的：
+iPhone 默认用 **Apple 端侧模型**：iOS 26 以上、支持并打开了 Apple 智能的 iPhone（iPhone 15 Pro 及以后）和 iPad 不用装任何东西就能用 AI，模型完全在手机上运行。
+
+设备不支持时，可以在 **设置与数据 → AI** 里把引擎换成 Ollama，用同一个 Wi-Fi 下电脑上的：
 
 1. 在电脑上让 Ollama 接受局域网连接：macOS 运行 `launchctl setenv OLLAMA_HOST 0.0.0.0` 后重启 Ollama；Windows 在“系统 → 高级系统设置 → 环境变量”里添加 `OLLAMA_HOST=0.0.0.0`，再重启 Ollama。
 2. 查出电脑的局域网地址（比如 `192.168.1.20`）。
