@@ -17,7 +17,7 @@ await store.run('create', { uid: 'h-9', kind: 'note', zid: '1', title: '主机�
 await backend.switchBox('我的卡片盒');
 await store.open();
 
-let done = 0;
+let done = 0; // finished sync sessions (the client also connects to look, see app-sync-client.js)
 const events = [];
 sync.onEvent((e) => {
   events.push(e.type);
@@ -25,10 +25,14 @@ sync.onEvent((e) => {
   if (e.type === 'hostDone') done++;
 });
 location.hash = '#/sync'; // the page starts listening
-for (let i = 0; i < 1200 && done < 2; i++) {
+// finished when the client's second sync has arrived (its second edit of c-1)
+const second = () => store.S.cards.get('c-1')?.body === '客户端第二次写的';
+let edited = false;
+for (let i = 0; i < 1200 && !second(); i++) {
   await wait(100);
-  // between the client's two syncs both devices edit h-3, the host first
-  if (done === 1 && !store.S.cards.get('h-3').body.includes('主机改')) {
+  // between the client's two syncs both devices edit h-3, the host first (once)
+  if (done >= 1 && !edited) {
+    edited = true;
     await store.run('update', 'h-3', { body: '主机改过的闪念' });
   }
 }

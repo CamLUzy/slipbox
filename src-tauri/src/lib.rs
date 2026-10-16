@@ -270,7 +270,14 @@ fn backup_list(dir: &Path) -> Vec<String> {
 
 fn make_backup(db: &Database, dir: &Path) -> Res<String> {
     fs::create_dir_all(dir).map_err(err)?;
-    let name = format!("zettel-{}.db", chrono::Local::now().format("%Y-%m-%d-%H%M%S"));
+    let stamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S").to_string();
+    // two backups in the same second (e.g. two quick syncs) must not collide
+    let mut name = format!("zettel-{stamp}.db");
+    let mut n = 2;
+    while dir.join(&name).exists() {
+        name = format!("zettel-{stamp}-{n}.db");
+        n += 1;
+    }
     db.backup(&dir.join(&name))?;
     for old in backup_list(dir).into_iter().skip(KEEP_BACKUPS) {
         let _ = fs::remove_file(dir.join(old));
@@ -1027,6 +1034,10 @@ mod tests {
         assert_eq!(all.len(), 1);
         assert_eq!(all[0]["zid"], "1a");
         db.backup(&dir.join("backup.db")).unwrap();
+        // backups in the same second get distinct names
+        let a = make_backup(&db, &dir.join("b")).unwrap();
+        let b = make_backup(&db, &dir.join("b")).unwrap();
+        assert_ne!(a, b);
         assert_eq!(count_cards(&dir.join("backup.db")), 1);
         db.delete(&["a".into()], &HashMap::new()).unwrap();
         assert!(db.purged_json().unwrap().contains("\"uid\":\"a\""));

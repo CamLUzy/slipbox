@@ -267,7 +267,14 @@ final class Backups {
     func make() throws -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd-HHmmss"
-        let name = "zettel-\(f.string(from: Date())).db"
+        let stamp = f.string(from: Date())
+        // two backups in the same second (e.g. two quick syncs) must not collide
+        var name = "zettel-\(stamp).db"
+        var n = 2
+        while FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path) {
+            name = "zettel-\(stamp)-\(n).db"
+            n += 1
+        }
         try db.backup(to: dir.appendingPathComponent(name))
         for old in list().dropFirst(keep) { try? FileManager.default.removeItem(at: dir.appendingPathComponent(old)) }
         return name

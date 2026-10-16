@@ -35,8 +35,16 @@ assert(store.S.cards.has('h-1') && store.S.cards.has('h-3'), 'host cards missing
 out.boxes = (await backend.boxes()).boxes.map((b) => b.name).sort();
 
 // edit, move to the trash and purge, then sync again (already paired: no code this time).
-// The host edits h-3 right after the first sync; the edit here is later, so it wins.
-await wait(1500);
+// The host edits h-3 right after the first sync: wait until it has (reading its box over the
+// connection), then edit here, later, so this edit wins.
+for (let i = 0; i < 200; i++) {
+  const c = await sync.connect({ address });
+  const r = JSON.parse(await backend.call('sync', { op: 'request', session: c.session, msg: JSON.stringify({ op: 'read', box: '我的卡片盒' }) }));
+  await sync.close(c);
+  if (r.cards.find((x) => x.uid === 'h-3')?.body === '主机改过的闪念') break;
+  await wait(250);
+}
+await wait(50);
 await store.run('update', 'h-3', { body: '客户端改过的闪念' });
 await store.run('update', 'c-1', { body: '客户端第二次写的' });
 await store.run('remove', 'h-2');

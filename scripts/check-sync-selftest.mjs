@@ -25,7 +25,7 @@ assert.equal(client.sync2.find((s) => s.box === '我的卡片盒').conflicts, 1,
 assert.equal(client.h2gone, true);
 assert.deepEqual(client.paired, ['主机']);
 
-assert.equal(host.syncs, 2);
+assert.ok(host.syncs >= 2, 'two syncs reached the host');
 assert.deepEqual(host.paired, ['客户端']);
 const t = (title) => host.cards.find((c) => c.title === title);
 assert.ok(!t('主机上的 1a'), 'purged on the client, gone on the host');
