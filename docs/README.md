@@ -4,6 +4,8 @@
 |---|---|
 | [Windows](WINDOWS.md) | 安装、升级、卸载、SmartScreen 与 WebView2 |
 | [macOS](MAC.md) | 安装、自己编译 |
+| [iPhone / iPad](IOS.md) | 用 Sideloadly / AltStore 或 Xcode 安装、数据在“文件”App、局域网 AI |
+| [多端互联](SYNC.md) | 局域网同步的方案（计划中） |
 | [本地 AI](AI.md) | 安装 Ollama、四个 AI 功能、模型与内存 |
 | [数据](DATA.md) | 文件在哪、备份与恢复、导入导出、换电脑 |
 | [FAQ](FAQ.md) | 常见问题 |

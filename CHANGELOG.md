@@ -2,6 +2,16 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2026-10-16
+
+### 新增
+
+- **iPhone / iPad 应用**（iOS 16+）：UIKit + WKWebView 外壳，和 Mac 版共用 `apple/Shared` 里的 Swift 核心（SQLite、卡片盒、备份、`zk` 消息桥）。数据放在“文件”App 里看得到的位置；导出用分享面板，导入用文件选择器；删除的卡片盒先放进“已删除的卡片盒”文件夹。
+- iPhone 上的 AI 可以连接同一个 Wi-Fi 下电脑上的 Ollama（只允许局域网地址）。
+- Release 里提供未签名的 `.ipa`，可用 Sideloadly / AltStore 安装；`docs/IOS.md` 写了安装步骤。
+- CI 在 iOS 模拟器里运行应用自测，并自动截取 iPhone 截图。
+- 多端互联（局域网同步）的方案：`docs/SYNC.md`。
+
 ## [1.0.0] - 2026-10-16
 
 第一个公开版本：macOS 与 Windows 两个桌面应用，共用同一份界面。

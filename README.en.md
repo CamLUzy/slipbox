@@ -5,7 +5,7 @@
 **A Luhmann-style slip box that you actually own.**
 
 Permanent card IDs, links and backlinks, a keyword register, relation graphs and a local AI,<br>
-on macOS and Windows, with every card kept on your own computer.
+on Windows, macOS and iPhone / iPad, with every card kept on your own devices.
 
 [Download](https://github.com/CamLUzy/slipbox/releases/latest) · [中文说明](README.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
 
@@ -39,17 +39,21 @@ From the [latest release](https://github.com/CamLUzy/slipbox/releases/latest):
   ships with). The files are not code-signed: choose *More info → Run anyway* in SmartScreen.
 - **macOS 12+:** `Slipbox-<version>-macos.zip`, a universal app. If macOS refuses to open it, use
   *System Settings → Privacy & Security → Open Anyway*.
+- **iPhone / iPad (iOS 16+):** `Slipbox-<version>-ios-unsigned.ipa`, installed with Sideloadly or
+  AltStore and a free Apple ID (re-sign every 7 days), or built from source with Xcode. See
+  [docs/IOS.md](docs/IOS.md).
 
 To try it with sample cards, use *设置与数据 → 从 JSON 导入* and pick
 [`docs/demo/demo-box.json`](docs/demo/demo-box.json).
 
 ## How it is built
 
-`web/` is the whole UI in plain HTML, CSS and JavaScript (no build step). `mac/main.swift` wraps it
-in a WKWebView window (about 1 MB); `src-tauri/` wraps it in Tauri 2 with WebView2 on Windows. Both
+`web/` is the whole UI in plain HTML, CSS and JavaScript (no build step). `apple/Shared` holds the
+Swift store and bridge used by `mac/` (a WKWebView window, about 1 MB) and `ios/` (UIKit);
+`src-tauri/` wraps the UI in Tauri 2 with WebView2 on Windows. All three
 shells answer the same `zk` messages (cards, slip boxes, backups, export, the Ollama proxy), and
-both have a headless self-test mode that CI runs against the packaged app on real Windows and
-macOS machines. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+each has a headless self-test mode that CI runs against the packaged app on Windows, macOS and the
+iOS simulator. LAN sync between devices is planned next ([docs/SYNC.md](docs/SYNC.md)). See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## License
 

@@ -25,11 +25,11 @@
       <path d="M 860 339 L 860 446" marker-end="url(#a)" stroke-dasharray="7 6"/>
       <path d="M 430 339 L 430 395 L 790 395 L 790 446" marker-end="url(#a)" stroke-dasharray="7 6"/>
     </g></svg>
-  <div class="b ui"><h3>共享界面 <code>web/</code></h3><p>原生 HTML · CSS · JavaScript，无需构建。Folgezettel 编号、Markdown 与 [[链接]]、索引、关系图、AI 面板。两个平台用的是同一份代码。</p></div>
+  <div class="b ui"><h3>共享界面 <code>web/</code></h3><p>原生 HTML · CSS · JavaScript，无需构建。Folgezettel 编号、Markdown 与 [[链接]]、索引、关系图、AI 面板。三个平台用的是同一份代码。</p></div>
   <div class="lbl" style="left:446px;top:172px">同一套 zk 消息协议</div>
-  <div class="lbl" style="left:600px;top:383px">AI 请求经外壳转发，只连本机</div>
-  <div class="b mac"><h3>macOS 外壳</h3><p><code>mac/main.swift</code><br>Swift + WKWebView，约 1 MB</p></div>
+  <div class="lbl" style="left:575px;top:383px">AI 请求经外壳转发，只连本机或局域网</div>
+  <div class="b mac"><h3>macOS 与 iOS 外壳</h3><p><code>apple/Shared</code> · <code>mac/</code> · <code>ios/</code><br>Swift + WKWebView，Mac 与 iPhone 共用核心</p></div>
   <div class="b win"><h3>Windows 外壳</h3><p><code>src-tauri/</code><br>Rust + Tauri 2 + WebView2，便携 exe 或安装包</p></div>
-  <div class="b db"><h3>你的数据</h3><p><code>boxes/&lt;卡片盒名&gt;.db</code> 每个卡片盒一个 SQLite 文件，两个平台通用<br><code>backups/&lt;卡片盒名&gt;/</code> 每天自动备份，保留 30 份</p></div>
+  <div class="b db"><h3>你的数据</h3><p><code>boxes/&lt;卡片盒名&gt;.db</code> 每个卡片盒一个 SQLite 文件，三个平台通用<br><code>backups/&lt;卡片盒名&gt;/</code> 每天自动备份，保留 30 份</p></div>
   <div class="b ai"><h3>本地 AI（可选）</h3><p>Ollama · <code>qwen3.5:4b</code><br>点击 AI 功能时才加载</p></div>
 </body></html>

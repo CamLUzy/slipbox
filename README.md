@@ -5,17 +5,18 @@
 **一个真正属于你的卢曼卡片盒。**
 
 固定编号、双向链接、关键词索引、关系图和本地 AI，<br>
-在 macOS 和 Windows 上运行，每一张卡片都只保存在你自己的电脑上。
+在 Windows、macOS 和 iPhone / iPad 上运行，每一张卡片都只保存在你自己的设备上。
 
 [![Release](https://img.shields.io/github/v/release/CamLUzy/slipbox?style=flat-square&label=release)](https://github.com/CamLUzy/slipbox/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/CamLUzy/slipbox/total?style=flat-square&label=downloads)](https://github.com/CamLUzy/slipbox/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/CamLUzy/slipbox/build.yml?branch=main&label=build&style=flat-square)](https://github.com/CamLUzy/slipbox/actions/workflows/build.yml)
-[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-2c6a96?style=flat-square)](#下载与安装)
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-2c6a96?style=flat-square)](#下载与安装)
 [![License: MIT](https://img.shields.io/badge/license-MIT-c0503a?style=flat-square)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/CamLUzy/slipbox?style=flat-square&logo=github&color=24292f)](https://github.com/CamLUzy/slipbox/stargazers)
 
 [下载 Windows 版](https://github.com/CamLUzy/slipbox/releases/latest) ·
 [下载 macOS 版](https://github.com/CamLUzy/slipbox/releases/latest) ·
+[iPhone 版](docs/IOS.md) ·
 [使用指南](docs/README.md) ·
 [示例卡片盒](docs/demo/demo-box.json) ·
 [路线图](ROADMAP.md) ·
@@ -81,6 +82,7 @@ AI 只在你点 AI 按钮时才在本机启动，它可以帮你整理闪念、�
 | **Windows 10 / 11** | `Slipbox-<版本>-windows-x64-setup.exe` | 安装版，装到当前用户，开始菜单里叫“卡片盒”。缺 WebView2 时会自动补装 |
 | | `Slipbox-<版本>-windows-x64-portable.exe` | 便携版，双击即用，不写注册表（需要系统自带的 WebView2，Windows 11 和更新过的 Windows 10 都有） |
 | **macOS 12+** | `Slipbox-<版本>-macos.zip` | 解压后把“卡片盒.app”拖进“应用程序”（Apple 芯片和 Intel 通用） |
+| **iPhone / iPad（iOS 16+）** | `Slipbox-<版本>-ios-unsigned.ipa` | 用 Sideloadly 或 AltStore 配合免费 Apple ID 安装，或用 Xcode 从源码安装，见 [iPhone / iPad](docs/IOS.md) |
 
 每个文件旁边的 `SHA256SUMS.txt` 可以用来校验下载是否完整。
 
@@ -116,14 +118,15 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 </p>
 
 - **`web/`** 是整个界面：原生 HTML、CSS 和 JavaScript，没有框架、不需要构建。编号规则（`luhmann.js`）和所有数据操作（`ops.js`）都是纯函数，旁边有单元测试。
-- **`mac/main.swift`** 是 macOS 外壳：一个 WKWebView 窗口，加上 SQLite、菜单栏、存储面板和自动备份，编译出来约 1 MB。
+- **`apple/Shared/`** 是 Mac 和 iPhone 共用的 Swift 核心：SQLite、卡片盒、备份和 `zk` 消息桥。
+- **`mac/main.swift`** 是 macOS 外壳：窗口、菜单栏和存储面板，编译出来约 1 MB；**`ios/`** 是 iPhone / iPad 外壳：分享面板、文件选择器，数据放在“文件”App 里能看到的位置。
 - **`src-tauri/`** 是 Windows 外壳：Rust + Tauri 2，用系统自带的 WebView2 显示同一份界面。
-- 两个外壳回答同一套 `zk` 消息（读写卡片、管理卡片盒、备份、导出、AI 代理），所以界面代码在两个平台上完全一样。
-- 两个外壳都带一个无窗口的自测模式，CI 每次都会在真正的 Windows 和 macOS 上打开打包好的应用，跑一遍读写、改号、备份和页面渲染。
+- 三个外壳回答同一套 `zk` 消息（读写卡片、管理卡片盒、备份、导出、AI 代理），所以界面代码在所有平台上完全一样。
+- 每个外壳都带一个无窗口的自测模式，CI 每次都会在真正的 Windows、macOS 和 iOS 模拟器里打开打包好的应用，跑一遍读写、改号、备份和页面渲染。
 
 ### 你的数据
 
-所有内容都在一个文件夹里：Windows 是 `%APPDATA%\卡片盒`，macOS 是 `~/Library/Application Support/卡片盒`。
+所有内容都在一个文件夹里：Windows 是 `%APPDATA%\卡片盒`，macOS 是 `~/Library/Application Support/卡片盒`，iPhone 是“文件”App 里的“我的 iPhone → 卡片盒”。
 
 | 路径 | 内容 |
 |---|---|
@@ -131,7 +134,7 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 | `backups/<卡片盒名>/zettel-日期.db` | 每天一份自动备份，保留最近 30 份 |
 | `settings.json`（Windows） | 上次打开的卡片盒 |
 
-备份这个文件夹，就备份了一切。换电脑时把它拷过去即可，Mac 和 Windows 之间也通用。
+备份这个文件夹，就备份了一切。换设备时把它拷过去即可，三个平台的文件格式完全相同。
 
 ## 文档
 
@@ -140,6 +143,8 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 | 先了解卡片盒方法和这个应用怎么用 | [使用指南](docs/README.md) |
 | 在 Windows 上安装、升级、卸载 | [Windows](docs/WINDOWS.md) |
 | 在 Mac 上安装或自己编译 | [macOS](docs/MAC.md) |
+| 装到 iPhone / iPad | [iPhone / iPad](docs/IOS.md) |
+| 了解多端同步的计划 | [多端互联](docs/SYNC.md) |
 | 打开本地 AI | [本地 AI](docs/AI.md) |
 | 备份、导入导出、换电脑 | [数据](docs/DATA.md) |
 | 找常见问题的答案 | [FAQ](docs/FAQ.md) |
@@ -153,9 +158,9 @@ npx tauri build               # Windows：需要 Rust 与 WebView2，产物在 s
 | 版本 | 时间 | 主题 |
 |---|---|---|
 | v1.0.0 | 2026 年 10 月 | macOS 与 Windows 应用、多个卡片盒、本地 AI、关系图 |
-| v1.1 | 下一个 | iPhone / iPad 应用（同一份界面，Tauri iOS 外壳） |
-| v1.2 | 之后 | 设备之间同步：通过你自己的网盘文件夹，不经过任何服务器 |
-| 以后 | | 图片附件、卡片历史版本、向量检索的“可能相关的卡片” |
+| v1.1.0 | 2026 年 10 月 | iPhone / iPad 应用 |
+| v1.2 | 下一个 | [局域网同步](docs/SYNC.md)：两台设备都开着，在一台上点“同步”，另一台当主机 |
+| 以后 | | 网盘文件夹远程同步、图片附件、卡片历史版本、向量检索的“可能相关的卡片” |
 
 ## 参与
 

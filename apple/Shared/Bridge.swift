@@ -217,7 +217,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
 ///
 /// Development: ZK_DATA_DIR=<folder> uses another data folder and leaves the remembered box alone;
 /// ZK_BOX=<name> opens that box; ZK_SELFTEST=<script.js> runs the script in the page (body of an
-/// async function), prints the result and quits.
+/// async function), prints the result (and writes it to ZK_SELFTEST_OUT if set) and quits.
 enum ZKApp {
     static let env = ProcessInfo.processInfo.environment
     static let startURL = URL(string: "zk://app/index.html")!
@@ -255,14 +255,15 @@ enum ZKApp {
             exit(2)
         }
         webView.callAsyncJavaScript(js, arguments: [:], in: nil, in: .page) { result in
+            let (text, code): (String, Int32)
             switch result {
-            case .success(let value):
-                print(value)
-                exit(0)
-            case .failure(let error):
-                print("SELFTEST ERROR: \(error)")
-                exit(1)
+            case .success(let value): (text, code) = ("\(value)", 0)
+            case .failure(let error): (text, code) = ("SELFTEST ERROR: \(error)", 1)
             }
+            // ZK_SELFTEST_OUT: also write the result to a file (the iOS simulator has no usable stdout)
+            if let out = env["ZK_SELFTEST_OUT"] { try? text.write(toFile: out, atomically: true, encoding: .utf8) }
+            print(text)
+            exit(code)
         }
     }
 }
