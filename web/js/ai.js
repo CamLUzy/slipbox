@@ -27,7 +27,9 @@ export class AIError extends Error {
 
 export function aiErrorText(e) {
   return {
-    offline: '连接不到 Ollama。请确认已安装并打开 Ollama。',
+    offline: backend.platform === 'ios'
+      ? '连接不到 Ollama。请在“设置与数据 → AI”里填写电脑上 Ollama 的局域网地址。'
+      : '连接不到 Ollama。请确认已安装并打开 Ollama。',
     no_model: `还没有下载模型 ${cfg.model}。`,
     aborted: '已停止',
     bad_json: 'AI 返回的格式不对，请再试一次。',

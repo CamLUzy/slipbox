@@ -73,7 +73,7 @@ jobs:
           Get-ChildItem out | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: release-windows
           path: out/*
           if-no-files-found: error
 
@@ -107,14 +107,88 @@ jobs:
           ls -la out
       - uses: actions/upload-artifact@v4
         with:
-          name: macos
+          name: release-macos
+          path: out/*
+          if-no-files-found: error
+
+  ios:
+    name: iOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+      - name: Build for the simulator
+        run: |
+          xcodebuild -project ios/Slipbox.xcodeproj -scheme Slipbox -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios-sim CODE_SIGNING_ALLOWED=NO -quiet build
+      - name: Self-test in the iOS simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          print(next(d['udid'] for runtime, ds in sorted(devices.items(), reverse=True) if 'iOS' in runtime for d in ds if d['name'].startswith('iPhone')))")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" build/ios-sim/Build/Products/Debug-iphonesimulator/Slipbox.app
+          DATA=$(xcrun simctl get_app_container "$UDID" io.github.camluzy.slipbox data)
+          run_selftest() {
+            cp "tests/$1.js" "$DATA/tmp/$1.js"
+            SIMCTL_CHILD_ZK_DATA_DIR="$DATA/tmp/data-$1" SIMCTL_CHILD_ZK_SELFTEST="$DATA/tmp/$1.js" \
+              xcrun simctl launch --console-pty --terminate-running-process "$UDID" io.github.camluzy.slipbox > "$RUNNER_TEMP/$1.txt" 2>&1 &
+            pid=$!
+            for _ in $(seq 1 150); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+            if kill -0 $pid 2>/dev/null; then kill $pid; cat "$RUNNER_TEMP/$1.txt"; echo "$1 timed out"; exit 1; fi
+            python3 - "$RUNNER_TEMP/$1.txt" "$2" <<'PY'
+          import json, sys
+          text = open(sys.argv[1], encoding='utf-8', errors='replace').read()
+          print(text[-1500:])
+          if 'SELFTEST ERROR' in text: sys.exit(1)
+          r = json.loads(text[text.index('{'):text.rindex('}') + 1])
+          sys.exit(0 if eval(sys.argv[2]) else 1)
+          PY
+          }
+          run_selftest app-selftest "r['native'] and len(r['persisted']) == 3 and r['cardTitle'] == '第一张'"
+          run_selftest app-boxes-selftest "r['platform'] == 'ios' and r['renamedCards'] == 1 and len(r['afterDelete']) == 1 and r['badName'] != 'accepted'"
+      - name: Screenshots
+        run: |
+          DATA=$(xcrun simctl get_app_container "$UDID" io.github.camluzy.slipbox data)
+          { printf 'const DATA = '; cat docs/demo/demo-box.json; printf ';\n'; cat scripts/shots/ios.js; } > "$DATA/tmp/ios-shots.js"
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          mkdir -p shots
+          SIMCTL_CHILD_ZK_DATA_DIR="$DATA/tmp/data-shots" SIMCTL_CHILD_ZK_SELFTEST="$DATA/tmp/ios-shots.js" \
+            xcrun simctl launch --terminate-running-process "$UDID" io.github.camluzy.slipbox
+          # the script shows one screen every 8 seconds, starting about 4 seconds after launch
+          for name in list card graph index; do sleep 8; xcrun simctl io "$UDID" screenshot "shots/ios-$name.png"; done
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: shots/*
+      - name: Build the unsigned .ipa
+        run: |
+          xcodebuild -project ios/Slipbox.xcodeproj -scheme Slipbox -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet build
+          v=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          mkdir -p Payload out
+          cp -R build/ios/Build/Products/Release-iphoneos/Slipbox.app Payload/
+          zip -qry "out/Slipbox-$v-ios-unsigned.ipa" Payload
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-ios
           path: out/*
           if-no-files-found: error
 
   release:
     name: publish release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, windows, macos]
+    needs: [test, windows, macos, ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -123,13 +197,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: out
+          pattern: release-*
           merge-multiple: true
       - name: Checksums and notes
         run: |
           cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt && cd ..
           v="${GITHUB_REF_NAME#v}"
           awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
-          printf '\n---\n**下载**：Windows 选 `*-setup.exe`（安装版）或 `*-portable.exe`（便携版）；macOS 选 `*-macos.zip`。安装包没有代码签名，首次打开的提示见 [Windows](https://github.com/%s/blob/main/docs/WINDOWS.md) / [macOS](https://github.com/%s/blob/main/docs/MAC.md)。用 `SHA256SUMS.txt` 校验下载。\n' "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY" >> notes.md
+          printf '\n---\n**下载**：Windows 选 `*-setup.exe`（安装版）或 `*-portable.exe`（便携版）；macOS 选 `*-macos.zip`；iPhone / iPad 选 `*-ios-unsigned.ipa`（用 Sideloadly 或 AltStore 安装，见 [iOS](https://github.com/%s/blob/main/docs/IOS.md)）。安装包没有代码签名，首次打开的提示见 [Windows](https://github.com/%s/blob/main/docs/WINDOWS.md) / [macOS](https://github.com/%s/blob/main/docs/MAC.md)。用 `SHA256SUMS.txt` 校验下载。\n' "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY" >> notes.md
           cat notes.md
       - name: Publish
         env:

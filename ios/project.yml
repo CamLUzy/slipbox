@@ -1,0 +1,60 @@
+# XcodeGen project for the iPhone / iPad app:  brew install xcodegen && cd ios && xcodegen
+# The generated Slipbox.xcodeproj is not committed.
+name: Slipbox
+options:
+  bundleIdPrefix: io.github.camluzy
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Slipbox:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: ../apple/Shared
+      - path: Assets.xcassets
+      - path: ../web
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        PRODUCT_NAME: Slipbox
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.camluzy.slipbox
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: 卡片盒
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: 卡片盒
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # The slip box folder shows up in the Files app (On My iPhone / 卡片盒).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: 连接家里电脑上的 Ollama（本地 AI），以及在同一局域网里的设备之间同步卡片。

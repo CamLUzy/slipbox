@@ -543,7 +543,7 @@ function viewSettings() {
         ${native ? `<dt>自动备份</dt><dd>每天一次，保留最近 30 份${backups[0] ? ` · 最近一次 ${esc(backups[0])}` : ''}</dd>` : ''}
       </dl>
       <div class="actions">
-        ${native ? `<button type="button" data-act="reveal">${backend.platform === 'mac' ? '在 Finder 中显示' : '在资源管理器中显示'}</button><button type="button" data-act="backup">立即备份</button>` : ''}
+        ${native ? `<button type="button" data-act="reveal">${{ mac: '在 Finder 中显示', ios: '在“文件”App 中显示' }[backend.platform] || '在资源管理器中显示'}</button><button type="button" data-act="backup">立即备份</button>` : ''}
         <button type="button" data-act="export-json">导出 JSON</button>
         ${native ? '<button type="button" data-act="export-md">导出为 Markdown 文件</button>' : ''}
         <button type="button" data-act="import-json">从 JSON 导入</button>
@@ -552,7 +552,9 @@ function viewSettings() {
       ${native ? '' : '<p class="muted small">你正在浏览器里使用卡片盒，数据保存在这个浏览器中。清除浏览器数据会删除它们，请定期导出 JSON。安装桌面应用后可以用“从 JSON 导入”迁移过去。</p>'}
     </section>
     <section><h2>AI（本地模型）</h2>
-      <p class="muted small">AI 通过本机的 Ollama 运行，数据不会离开这台电脑。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>
+      ${backend.platform === 'ios'
+        ? '<p class="muted small">iPhone / iPad 上跑不了 Ollama，但可以用家里电脑上的：在电脑上设置环境变量 <code>OLLAMA_HOST=0.0.0.0</code> 后重启 Ollama，再把下面的地址改成电脑的局域网地址，例如 <code>http://192.168.1.20:11434</code>。卡片只会发给局域网里的这台电脑。</p>'
+        : '<p class="muted small">AI 通过本机的 Ollama 运行，数据不会离开这台电脑。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>'}
       <div class="grid2">
         <div class="field"><label>模型</label><input id="ai-model" value="${esc(ai.cfg.model)}" autocapitalize="off"></div>
         <div class="field"><label>Ollama 地址</label><input id="ai-base" value="${esc(ai.cfg.base)}" autocapitalize="off"></div>

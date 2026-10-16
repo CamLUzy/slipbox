@@ -12,8 +12,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$TMP"
 
 echo "• 编译 Swift…"
 FLAGS=(-O -framework Cocoa -framework WebKit -lsqlite3)
-swiftc "${FLAGS[@]}" -target arm64-apple-macos12 mac/main.swift -o "$TMP/arm64"
-if swiftc "${FLAGS[@]}" -target x86_64-apple-macos12 mac/main.swift -o "$TMP/x86_64" 2>/dev/null; then
+swiftc "${FLAGS[@]}" -target arm64-apple-macos12 apple/Shared/*.swift mac/main.swift -o "$TMP/arm64"
+if swiftc "${FLAGS[@]}" -target x86_64-apple-macos12 apple/Shared/*.swift mac/main.swift -o "$TMP/x86_64" 2>/dev/null; then
   lipo -create "$TMP/arm64" "$TMP/x86_64" -output "$APP/Contents/MacOS/Zettelkasten"   # Apple 芯片 + Intel
 else
   cp "$TMP/arm64" "$APP/Contents/MacOS/Zettelkasten"

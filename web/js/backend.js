@@ -9,7 +9,8 @@ const native = window.webkit?.messageHandlers?.zk || (tauri && { postMessage: (m
 const DEFAULT_BOX = '我的卡片盒';
 
 export const isNative = !!native;
-export const platform = window.webkit?.messageHandlers?.zk ? 'mac' : tauri ? 'tauri' : 'web';
+const appleTouch = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+export const platform = window.webkit?.messageHandlers?.zk ? (appleTouch ? 'ios' : 'mac') : tauri ? 'tauri' : 'web';
 
 if (platform === 'tauri') {
   // External links open in the default browser instead of inside the app window.

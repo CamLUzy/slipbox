@@ -1,6 +1,7 @@
 // AI screens: organize a note, map the relations of one card or of the whole box,
 // and chat with the slip box. The model is only started by the buttons here.
 import * as ai from './ai.js';
+import * as backend from './backend.js';
 import * as sim from './similarity.js';
 import * as Z from './luhmann.js';
 import { S, index, run } from './store.js';
@@ -134,7 +135,9 @@ function paintStatus() {
     text = `<i class="dot busy"></i>${model} ${st.loaded ? '正在运行' : '正在加载…'}`;
   } else if (!st.running) {
     state = 'off';
-    text = '<i class="dot"></i>Ollama 未运行 · 使用 AI 功能时会自动启动';
+    text = backend.platform === 'ios'
+      ? '<i class="dot"></i>连接不到 Ollama · 在“设置与数据 → AI”里填写电脑上 Ollama 的局域网地址'
+      : '<i class="dot"></i>Ollama 未运行 · 使用 AI 功能时会自动启动';
   } else if (!st.installed) {
     state = 'missing';
     text = `<i class="dot"></i>未下载 ${model}`;

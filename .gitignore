@@ -5,3 +5,5 @@ out/
 node_modules/
 src-tauri/target/
 src-tauri/gen/
+ios/Slipbox.xcodeproj/
+ios/Info.plist
