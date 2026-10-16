@@ -163,13 +163,20 @@ jobs:
           # one launch per screen: the script shows the screen and keeps it for 10 seconds
           for name in list card graph index; do
             { printf 'const SCREEN = "%s";\nconst DATA = ' "$name"; cat docs/demo/demo-box.json; printf ';\n'; cat scripts/shots/ios.js; } > "$DATA/tmp/shot.js"
-            rm -f "$DATA/tmp/shot.out"
-            SIMCTL_CHILD_ZK_DATA_DIR="$DATA/tmp/shots-$name" SIMCTL_CHILD_ZK_SELFTEST="$DATA/tmp/shot.js" SIMCTL_CHILD_ZK_SELFTEST_OUT="$DATA/tmp/shot.out" \
-              xcrun simctl launch --terminate-running-process "$UDID" io.github.camluzy.slipbox
-            sleep 6
-            xcrun simctl io "$UDID" screenshot "shots/ios-$name.png"
-            for _ in $(seq 1 20); do [ -f "$DATA/tmp/shot.out" ] && break; sleep 1; done
-            echo "$name: $(cat "$DATA/tmp/shot.out" 2>/dev/null || echo 'no result')"
+            # a launch right after the previous instance exits sometimes lands behind the home screen;
+            # the home screen (wallpaper) is a much bigger PNG than any app screen, so retry those
+            for try in 1 2 3; do
+              rm -rf "$DATA/tmp/shot.out" "$DATA/tmp/shots-$name"
+              SIMCTL_CHILD_ZK_DATA_DIR="$DATA/tmp/shots-$name" SIMCTL_CHILD_ZK_SELFTEST="$DATA/tmp/shot.js" SIMCTL_CHILD_ZK_SELFTEST_OUT="$DATA/tmp/shot.out" \
+                xcrun simctl launch --terminate-running-process "$UDID" io.github.camluzy.slipbox
+              sleep 6
+              xcrun simctl io "$UDID" screenshot "shots/ios-$name.png"
+              for _ in $(seq 1 20); do [ -f "$DATA/tmp/shot.out" ] && break; sleep 1; done
+              sleep 3
+              size=$(stat -f %z "shots/ios-$name.png")
+              echo "$name (try $try): $(cat "$DATA/tmp/shot.out" 2>/dev/null || echo 'no result'), $size bytes"
+              [ "$size" -lt 1500000 ] && break
+            done
           done
           ls -la shots
       - uses: actions/upload-artifact@v4
