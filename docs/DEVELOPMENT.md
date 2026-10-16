@@ -100,4 +100,4 @@ bash scripts/promo/make.sh          # 生成 dist/slipbox-intro.mp4（1 分钟�
 bash scripts/promo/make.sh 12 30    # 只导出这几秒的静帧，用来检查画面
 ```
 
-镜头都在 `scripts/promo/index.html` 里，每一帧只由时间决定（`seek(t)`），用浏览器打开并加上 `?play` 可以直接预览。`record.swift` 逐帧截图交给 ffmpeg 编码；配乐由 `music.py` 用 numpy 合成，没有采样，也没有版权问题。需要 ffmpeg 和带 numpy、scipy 的 Python。
+镜头都在 `scripts/promo/index.html` 里，每一帧只由时间决定（`seek(t)`），用浏览器打开并加上 `?play` 可以直接预览。`record.swift` 逐帧截图交给 ffmpeg 编码；配乐由 `music.py` 用 numpy 合成，没有采样，也没有版权问题；旁白由本地语音模型 Kokoro-82M-v1.1-zh 生成（`voice.py`，每句对准镜头时间），`mix.py` 在说话时把配乐压低。需要 ffmpeg 和带 numpy、scipy 的 Python；旁白另需一个 Python 3.12 环境，见 `make.sh` 里的说明，没有它时视频只有配乐。
