@@ -471,3 +471,30 @@ line[class*="g-rel-"] { stroke: var(--rel); }
   .modal-wrap { align-items: end; padding: 0; }
   .modal { border-radius: 16px 16px 0 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- 设备与同步 ---------- */
+.sync-me, .sync-dev { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sync-me { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; }
+.sync-dev { padding: 8px 10px; }
+.sync-dev + .sync-dev { border-top: 1px solid var(--line); }
+.sync-dev > div, .sync-me > div { min-width: 0; }
+.sync-panel { background: var(--paper); border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 16px; margin: 16px 0; }
+.sync-panel p { margin: 0 0 8px; }
+.sync-code { font: 600 34px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 4px; color: var(--accent); margin: 6px 0 10px !important; }
+.sync-plan { display: grid; gap: 6px; margin: 8px 0 4px; }
+.sync-row { display: flex; gap: 10px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; background: var(--paper-2); cursor: pointer; }
+.sync-row input { margin-top: 4px; }
+.sync-row .muted { display: block; }
+.sync-result + .sync-result { border-top: 1px solid var(--line); padding-top: 8px; }
+.sync-result ul { margin: 0 0 8px; padding-left: 20px; }
+.sync-manual { margin-top: 10px; }
+.sync-manual summary { cursor: pointer; color: var(--ink-2); }
+.sync-addr { display: flex; gap: 8px; margin-top: 8px; }
+.sync-addr input { flex: 1; min-width: 0; }
+.sync-page .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); display: inline-block; margin-right: 6px; }
+.sync-page .dot.on { background: #3f9a52; }
+.sync-panel .spinner { display: inline-block; vertical-align: -3px; width: 16px; height: 16px; margin-right: 8px; }
+
+.ai-setup { padding: 16px 18px; background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); }
+.ai-setup p { margin: 0 0 8px; }
+#ai-provider { width: 100%; }

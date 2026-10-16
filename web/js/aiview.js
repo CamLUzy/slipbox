@@ -28,8 +28,9 @@ function isLinked(ix, a, b) {
   return a.kind === 'note' && b.kind === 'note' && (Z.parent(a.zid) === b.zid || Z.parent(b.zid) === a.zid);
 }
 
-// Runs an AI task inside `box`: progress, a stop button and readable errors.
-async function job(box, fn) {
+// Runs an AI task inside `box`: progress, a stop button and readable errors. `again` reruns
+// the task after the user installed Ollama or switched engines from here.
+async function job(box, fn, again) {
   const ctrl = new AbortController();
   box.innerHTML = `<div class="ai-job"><span class="spinner"></span><div class="ai-job-text"><b class="ai-step">准备中…</b><div class="muted small ai-sub"></div></div>
     <button type="button" class="ai-stop">停止</button></div>`;
@@ -41,7 +42,9 @@ async function job(box, fn) {
     await ai.ensureReady(step);
     return await fn({ signal: ctrl.signal, step, onToken: (text) => sub(`已生成 ${text.length} 字`) });
   } catch (e) {
-    if (e.code === 'no_model') showDownload(box);
+    if (e.code === 'no_model') showDownload(box, again);
+    else if (e.code === 'not_installed') showSetup(box, again);
+    else if (e.code === 'apple_unavailable') showAppleUnavailable(box, e, again);
     else box.innerHTML = `<p class="${e.code === 'aborted' ? 'muted' : 'err'}">${esc(ai.aiErrorText(e))}</p>`;
     return null;
   } finally {
@@ -49,7 +52,87 @@ async function job(box, fn) {
   }
 }
 
-function showDownload(box) {
+const againButton = (again) => (again ? '<div class="actions"><button type="button" class="primary" data-x="again-ai">继续</button></div>' : '');
+const bindAgain = (box, again) => { const b = $('[data-x=again-ai]', box); if (b) b.onclick = again; };
+
+function showAppleUnavailable(box, e, again) {
+  box.innerHTML = `<div class="ai-setup"><p class="err">${esc(ai.aiErrorText(e))}</p>
+    <div class="actions"><button type="button" data-x="use-ollama">改用 Ollama</button></div></div>`;
+  $('[data-x=use-ollama]', box).onclick = () => {
+    ai.setCfg({ provider: 'ollama' });
+    refreshStatus();
+    if (again) again(); else box.innerHTML = '<p>已改用 Ollama。请再点一次刚才的 AI 功能。</p>';
+  };
+}
+
+// Ollama is not installed: one-click install (Mac and Windows), or Apple's model if available.
+export async function showSetup(box, again) {
+  const apple = ai.canUseApple ? await ai.appleStatus() : { available: false };
+  const size = backend.platform === 'tauri' ? '约 1.6 GB' : '约 210 MB';
+  box.innerHTML = `<div class="ai-setup">
+    <p><b>这台电脑还没有安装 Ollama</b></p>
+    <p class="muted small">卡片盒的 AI 在本机运行：需要免费的 Ollama（${size}）和模型 ${esc(ai.cfg.model)}（约 3.3 GB）。
+      只需安装一次，之后不用联网，卡片也不会离开这台电脑。</p>
+    <div class="actions">
+      ${ai.canInstallOllama() ? '<button type="button" class="primary" data-x="install">一键安装 Ollama 和模型</button>' : ''}
+      ${apple.available ? '<button type="button" data-x="apple">改用 Apple 端侧模型（系统自带，不用下载）</button>' : ''}
+      <a class="btn" href="https://ollama.com/download" target="_blank" rel="noopener">自己下载 Ollama</a>
+    </div></div>`;
+  const ins = $('[data-x=install]', box);
+  if (ins) ins.onclick = () => installAll(box, again);
+  const ap = $('[data-x=apple]', box);
+  if (ap) {
+    ap.onclick = () => {
+      ai.setCfg({ provider: 'apple' });
+      refreshStatus();
+      if (again) again(); else box.innerHTML = '<p>已改用 Apple 端侧模型。</p>';
+    };
+  }
+}
+
+async function installAll(box, again) {
+  const ctrl = new AbortController();
+  box.innerHTML = `<div class="ai-job"><span class="spinner"></span><div class="ai-job-text"><b class="ai-step">准备下载…</b>
+    <div class="progress"><i style="width:0"></i></div><div class="muted small ai-sub">第 1 步，共 2 步：安装 Ollama</div></div>
+    <button type="button" class="ai-stop">取消</button></div>`;
+  $('.ai-stop', box).onclick = () => ctrl.abort();
+  const show = (text, frac) => {
+    const step = $('.ai-step', box);
+    if (step) step.textContent = frac === null || frac === undefined ? text : `${text} ${(frac * 100).toFixed(0)}%`;
+    const bar = $('.progress i', box);
+    if (bar) bar.style.width = frac === null || frac === undefined ? '100%' : `${frac * 100}%`;
+  };
+  setBusy(1);
+  try {
+    await ai.installOllama(show, ctrl.signal);
+    show('正在等待 Ollama 启动…', null);
+    let st = await ai.status();
+    for (let i = 0; i < 60 && !st.running && !ctrl.signal.aborted; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      st = await ai.status();
+    }
+    if (!st.running) throw new ai.AIError('offline');
+    if (!st.installed) {
+      const sub = $('.ai-sub', box);
+      if (sub) sub.textContent = `第 2 步，共 2 步：下载模型 ${ai.cfg.model}`;
+      await ai.pull((text, frac) => show(frac === null ? text : '正在下载模型…', frac), ctrl.signal);
+    }
+    box.innerHTML = `<p>✓ Ollama 和模型都装好了${again ? '' : '，请再点一次刚才的 AI 功能'}。</p>${againButton(again)}`;
+    bindAgain(box, again);
+  } catch (e) {
+    box.innerHTML = `<p class="${e.code === 'aborted' ? 'muted' : 'err'}">${esc(e.code === 'aborted' ? '已取消' : ai.aiErrorText(e))}</p>`;
+  } finally {
+    setBusy(-1);
+    refreshStatus();
+  }
+}
+
+/** The setup screen in a dialog (from 设置与数据). */
+export function openSetup() {
+  H.openModal('<h2>安装本地 AI</h2><div class="ai-box"></div>', { onMount: (m) => showSetup($('.ai-box', m)) });
+}
+
+function showDownload(box, again) {
   box.innerHTML = `<div class="ai-job"><div class="ai-job-text"><b>还没有下载模型 ${esc(ai.cfg.model)}</b>
     <div class="muted small">只需下载一次（约 3–4 GB），之后完全离线运行。</div></div>
     <button type="button" class="primary ai-pull">下载</button></div>`;
@@ -63,7 +146,8 @@ function showDownload(box) {
         $('.ai-step', box).textContent = frac === null ? statusText : `正在下载… ${(frac * 100).toFixed(0)}%`;
         if (frac !== null) $('.progress i', box).style.width = `${frac * 100}%`;
       }, ctrl.signal);
-      box.innerHTML = '<p>下载完成。请再点一次刚才的 AI 功能。</p>';
+      box.innerHTML = `<p>下载完成${again ? '' : '。请再点一次刚才的 AI 功能'}。</p>${againButton(again)}`;
+      bindAgain(box, again);
     } catch (e) {
       box.innerHTML = `<p class="err">${esc(ai.aiErrorText(e))}</p>`;
     }
@@ -123,14 +207,18 @@ function paintStatus() {
   if (foot) {
     foot.classList.toggle('on', !!st?.loaded && !live.busy);
     foot.classList.toggle('busy', live.busy > 0);
-    foot.title = live.busy ? 'AI 正在运行' : st?.loaded ? `${ai.cfg.model} 已加载，占用内存` : '';
+    foot.title = live.busy ? 'AI 正在运行' : st?.loaded ? `${ai.modelName()} 已加载，占用内存` : '';
   }
   const el = document.getElementById('ai-status');
   if (!el || !st) return;
-  const model = esc(ai.cfg.model);
+  const model = esc(ai.modelName());
   let text;
   let state;
-  if (live.busy) {
+  if (st.apple) {
+    state = st.running ? (live.busy ? 'busy' : 'apple') : 'off';
+    text = !st.running ? `<i class="dot"></i>${esc(ai.appleReasonText(st.reason))}`
+      : live.busy ? '<i class="dot busy"></i>Apple 端侧模型正在运行' : '<i class="dot on"></i>Apple 端侧模型 · 系统自带，不用下载';
+  } else if (live.busy) {
     state = 'busy';
     text = `<i class="dot busy"></i>${model} ${st.loaded ? '正在运行' : '正在加载…'}`;
   } else if (!st.running) {
@@ -152,7 +240,7 @@ function paintStatus() {
   // Rebuild the controls only when they change, so an open dropdown is not closed by polling.
   const keep = ai.cfg.keepAlive;
   const controls = (state === 'loaded' ? '<button type="button" data-ai="unload">释放内存</button>' : '') +
-    (st.running && st.installed ? `<select data-ai="keep" title="闲置多久后自动释放内存">${[['1m', '闲置 1 分钟后释放'], ['5m', '闲置 5 分钟后释放'], ['30m', '闲置 30 分钟后释放']].map(([v, t]) =>
+    (st.running && st.installed && !st.apple ? `<select data-ai="keep" title="闲置多久后自动释放内存">${[['1m', '闲置 1 分钟后释放'], ['5m', '闲置 5 分钟后释放'], ['30m', '闲置 30 分钟后释放']].map(([v, t]) =>
       `<option value="${v}"${v === keep ? ' selected' : ''}>${t}</option>`).join('')}</select>` : '');
   if (!el.querySelector('.ai-st-text')) el.innerHTML = '<span class="ai-st-text"></span><span class="ai-st-controls"></span>';
   el.querySelector('.ai-st-text').innerHTML = text;
@@ -193,7 +281,7 @@ export function openOrganize(card) {
         const r = await job(box, ({ signal, step, onToken }) => {
           step('AI 正在整理这张卡片…');
           return ai.organize(card, { candidates, keywords, signal, onToken });
-        });
+        }, go);
         if (!r) return;
         const pos = r.position;
         const refCard = pos.ref && index().byZid.get(pos.ref);
@@ -299,7 +387,7 @@ export function openRelate(card) {
         const r = await job(box, ({ signal, step, onToken }) => {
           step(`AI 正在比较 ${cands.length} 张候选卡片…`);
           return ai.relate(card, cands, { signal, onToken });
-        });
+        }, go);
         if (!r) return;
         const res = { summary: r.summary, relations: r.relations.map((x) => ({ uid: x.card.uid, type: x.type, reason: x.reason })) };
         lsSet(key, { ...res, at: Date.now(), updatedAt: card.updatedAt });
@@ -420,7 +508,7 @@ async function runMap(box) {
       }
     }
     return { themes, rels, at: Date.now() };
-  });
+  }, () => runMap(box));
   if (!res) return;
   lsSet(H.boxKey('zk.ai.map'), res);
   renderMap(box, res);

@@ -1,18 +1,28 @@
-// Local AI through Ollama. Nothing here runs on its own: the model is only loaded
-// when one of these functions is called from an "AI" button, and Ollama unloads it
+// Local AI through Ollama, or through the on-device Apple model (macOS / iOS 26 with Apple
+// Intelligence, apple/Shared/AppleAI.swift). Nothing here runs on its own: the model is only
+// loaded when one of these functions is called from an "AI" button, and Ollama unloads it
 // again after `keepAlive` of inactivity (or immediately via unload()).
 import * as backend from './backend.js';
 import { lsGet, lsSet, uuid } from './util.js';
 import * as Z from './luhmann.js';
 
+// Engines: 'ollama' everywhere; 'apple' in the Mac and iPhone apps. iPhones start with Apple's
+// model, since Ollama can only run on a computer.
+export const canUseApple = backend.platform === 'mac' || backend.platform === 'ios';
+
 export const cfg = {
+  provider: lsGet('zk.ai.provider', backend.platform === 'ios' ? 'apple' : 'ollama'),
   base: lsGet('zk.ai.base', 'http://127.0.0.1:11434'),
   model: lsGet('zk.ai.model', 'qwen3.5:4b'),
   keepAlive: lsGet('zk.ai.keep', '5m'),
 };
 
+export const isApple = () => cfg.provider === 'apple' && canUseApple;
+export const modelName = () => (isApple() ? 'Apple 端侧模型' : cfg.model);
+
 export function setCfg(patch) {
   Object.assign(cfg, patch);
+  lsSet('zk.ai.provider', cfg.provider);
   lsSet('zk.ai.base', cfg.base);
   lsSet('zk.ai.model', cfg.model);
   lsSet('zk.ai.keep', cfg.keepAlive);
@@ -31,10 +41,21 @@ export function aiErrorText(e) {
       ? '连接不到 Ollama。请在“设置与数据 → AI”里填写电脑上 Ollama 的局域网地址。'
       : '连接不到 Ollama。请确认已安装并打开 Ollama。',
     no_model: `还没有下载模型 ${cfg.model}。`,
+    not_installed: '这台电脑还没有安装 Ollama。可以在“设置与数据 → AI”里一键安装，Mac 上也可以改用 Apple 端侧模型。',
+    apple_unavailable: appleReasonText(e?.message),
     aborted: '已停止',
     bad_json: 'AI 返回的格式不对，请再试一次。',
   }[e?.code] || `AI 出错：${e?.message || e}`;
 }
+
+const APPLE_REASONS = {
+  device: '这台设备不支持 Apple 智能，请改用 Ollama。',
+  disabled: '请先在“系统设置 → Apple 智能与 Siri”里打开 Apple 智能。',
+  notReady: 'Apple 端侧模型还在下载或准备中，请稍后再试。',
+  os: 'Apple 端侧模型需要 macOS 26 或 iOS 26 以上。',
+  build: '这个版本的卡片盒没有包含 Apple 端侧模型，请改用 Ollama。',
+};
+export const appleReasonText = (r) => APPLE_REASONS[r] || 'Apple 端侧模型现在不能使用。';
 
 // ---------- transport ----------
 
@@ -94,8 +115,22 @@ async function request(path, body, { onLine, signal } = {}) {
 
 // ---------- model lifecycle ----------
 
+// Apple model: { available, reason }.
+export async function appleStatus() {
+  if (!canUseApple) return { available: false, reason: 'device' };
+  try {
+    return JSON.parse(await backend.call('appleAI', { op: 'status' }));
+  } catch {
+    return { available: false, reason: 'build' };
+  }
+}
+
 // { running, installed, loaded, version } — does not load the model.
 export async function status() {
+  if (isApple()) {
+    const a = await appleStatus();
+    return { apple: true, running: a.available, installed: a.available, loaded: false, reason: a.reason, expiresAt: null, vram: 0, models: [] };
+  }
   try {
     const tags = JSON.parse((await request('/api/tags')).text);
     const ps = JSON.parse((await request('/api/ps')).text);
@@ -118,9 +153,14 @@ export async function status() {
 // Make sure Ollama is up (starting the app if needed) and the model is downloaded.
 export async function ensureReady(onState = () => {}) {
   let st = await status();
-  if (!st.running && backend.isNative) {
+  if (st.apple) {
+    if (!st.running) throw new AIError('apple_unavailable', st.reason);
+    return st;
+  }
+  if (!st.running && backend.isNative && backend.platform !== 'ios') {
     onState('正在启动 Ollama…');
-    await backend.call('startOllama').catch(() => {});
+    const started = await backend.call('startOllama').catch(() => false);
+    if (!started) throw new AIError('not_installed');
     for (let i = 0; i < 30 && !st.running; i++) {
       await new Promise((r) => setTimeout(r, 500));
       st = await status();
@@ -133,6 +173,7 @@ export async function ensureReady(onState = () => {}) {
 }
 
 export async function unload() {
+  if (isApple()) return;
   await request('/api/generate', { model: cfg.model, keep_alive: 0 });
 }
 
@@ -151,8 +192,49 @@ export async function pull(onProgress, signal) {
   });
 }
 
+// One-click install of Ollama (Mac and Windows apps): onProgress(text, fraction or null).
+export async function installOllama(onProgress, signal) {
+  const id = uuid();
+  streams.set(id, (line) => {
+    try {
+      const j = JSON.parse(line);
+      onProgress(j.text, typeof j.frac === 'number' ? j.frac : null);
+    } catch { /* ignore */ }
+  });
+  const abort = () => backend.call('ollamaCancel', { id });
+  signal?.addEventListener('abort', abort);
+  try {
+    const r = JSON.parse(await backend.call('installOllama', { id }));
+    if (r.error) throw new AIError(r.cancelled ? 'aborted' : 'install', r.error);
+  } finally {
+    streams.delete(id);
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
+export const canInstallOllama = () => backend.platform === 'mac' || backend.platform === 'tauri';
+
+// The Apple model: the same messages; a JSON schema becomes guided generation natively.
+async function appleChat(messages, { format, onToken, signal, temperature }) {
+  const id = uuid();
+  if (onToken) streams.set(id, (line) => { try { onToken(JSON.parse(line).content); } catch { /* ignore */ } });
+  const abort = () => backend.call('ollamaCancel', { id });
+  signal?.addEventListener('abort', abort);
+  try {
+    const r = JSON.parse(await backend.call('appleAI', {
+      op: 'generate', id, messages: JSON.stringify(messages), schema: format ? JSON.stringify(format) : null, temperature,
+    }));
+    if (r.error) throw new AIError(r.cancelled ? 'aborted' : 'apple', r.error);
+    return { content: r.content, thinking: '' };
+  } finally {
+    streams.delete(id);
+    signal?.removeEventListener('abort', abort);
+  }
+}
+
 // Streamed chat. Returns the full reply text (and thinking, if enabled).
 export async function chat(messages, { format, think = false, onToken, onThinking, signal, temperature = 0.4 } = {}) {
+  if (isApple()) return appleChat(messages, { format, onToken, signal, temperature });
   let content = '';
   let thinking = '';
   let failure = null;
@@ -188,6 +270,8 @@ async function chatJson(messages, schema, opts) {
   try {
     return JSON.parse(content);
   } catch {
+    const m = content.match(/\{[\s\S]*\}/); // tolerate a code fence or a sentence around the JSON
+    try { if (m) return JSON.parse(m[0]); } catch { /* fall through */ }
     throw new AIError('bad_json', content.slice(0, 200));
   }
 }
@@ -330,14 +414,17 @@ ${groups.map((g, i) => `第 ${i} 组：\n${g.slice(0, 8).map((c) => `- ${cardRef
 
 // Chat over the slip box: the question plus the most relevant cards as context.
 export function chatMessages(history, question, contextCards) {
-  const ctx = contextCards.map((c) => `[[${cardRef(c)}]] ${c.title || ''}\n${clip((c.body || '').replace(/\s+/g, ' '), 600)}`).join('\n\n');
+  // the Apple model reads about 4000 tokens in all: fewer, shorter cards and less history
+  const small = isApple();
+  const cards = small ? contextCards.slice(0, 4) : contextCards;
+  const ctx = cards.map((c) => `[[${cardRef(c)}]] ${c.title || ''}\n${clip((c.body || '').replace(/\s+/g, ' '), small ? 260 : 600)}`).join('\n\n');
   const system = `${SYSTEM}
 回答时优先依据下面提供的卡片。提到某张卡片时，必须原样写出它开头的 [[编号]]，例如“正如 [[2]] 所说”，这样用户可以点开原卡片；不要编造不存在的编号。
 卡片里没有的内容可以补充你自己的看法，但要说明那是你的看法。回答简洁。
 
 相关卡片：
 ${ctx || '（没有找到相关卡片）'}`;
-  return [{ role: 'system', content: system }, ...history.slice(-8), { role: 'user', content: question }];
+  return [{ role: 'system', content: system }, ...history.slice(small ? -2 : -8).map((m) => (small ? { ...m, content: clip(m.content, 400) } : m)), { role: 'user', content: question }];
 }
 
 export const validRef = (ix, ref) => (ref?.startsWith('@') ? ix.byKey.has(ref.slice(1)) : Z.isValid(ref) && ix.byZid.has(ref));

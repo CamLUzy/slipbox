@@ -22,9 +22,19 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rusqlite = { version = "0.40", features = ["bundled"] }
-ureq = { version = "3", default-features = false }
+# native-tls (SChannel on Windows) only for the one-click Ollama download from GitHub
+ureq = { version = "3", default-features = false, features = ["native-tls"] }
 trash = "5"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+base64 = "0.23.1"
+sha2 = "0.10.9"
+snow = "0.9"
+mdns-sd = "0.21.5"
+if-addrs = "0.15.0"
+uuid = { version = "1.20.0", features = ["v4"] }
+
+[dev-dependencies]
+x25519-dalek = { version = "2", features = ["static_secrets"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

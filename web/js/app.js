@@ -6,6 +6,8 @@ import { renderMarkdown } from './markdown.js';
 import { renderGraph, attachPanZoom } from './graph.js';
 import * as aiv from './aiview.js';
 import * as ai from './ai.js';
+import * as sync from './sync.js';
+import * as syncv from './syncview.js';
 import { esc, uuid, timeAgo, fmtDate, debounce, splitKeywords, firstLine, lsGet, lsSet } from './util.js';
 
 // Shortcut labels: ⌘ on the Mac, Ctrl+ elsewhere.
@@ -72,6 +74,9 @@ async function boot() {
     return;
   }
   aiv.setup({ cardRow, linkCtx, toast, openModal, cardHref, titleOf, label, boxKey });
+  syncv.setup({ toast });
+  // a sync wrote into the open slip box (on either device): show the new cards
+  sync.onEvent((e) => { if (e.type === 'changed' && e.box === ui.box) open().catch(() => {}); });
   renderShell();
   onChange(onStoreChange);
   window.addEventListener('hashchange', route);
@@ -98,6 +103,7 @@ window.zkMenu = (action) => {
     case 'backup': backupNow(); break;
     case 'reveal': backend.reveal(); break;
     case 'ai': location.hash = '#/ai'; break;
+    case 'sync': location.hash = '#/sync'; break;
     case 'boxes': openBoxes(); break;
     case 'ai-map': location.hash = '#/ai/map'; break;
     case 'ai-unload': ai.unload().then(() => { toast('已释放模型内存'); aiv.refreshStatus(); }, () => toast('Ollama 未运行', 'warn')); break;
@@ -120,7 +126,7 @@ function renderShell() {
       <div class="search"><input id="q" type="search" placeholder="搜索编号、标题、正文…" autocomplete="off" enterkeyhint="search"></div>
       <nav class="tabs" id="tabs"></nav>
       <div class="list" id="list"></div>
-      <footer class="side-foot"><a href="#/ai" class="ai-link-foot">✦ AI 助手</a><a href="#/trash">回收站</a><a href="#/settings">设置与数据</a></footer>
+      <footer class="side-foot"><a href="#/ai" class="ai-link-foot">✦ AI 助手</a><a href="#/sync">同步</a><a href="#/trash">回收站</a><a href="#/settings">设置与数据</a></footer>
     </aside>
     <main class="main" id="main"></main>
   </div>
@@ -200,10 +206,13 @@ function renderMain() {
     case 'new': return mountNew(q);
     case 'settings': html = viewSettings(); break;
     case 'trash': html = viewTrash(); break;
+    case 'sync': html = syncv.view(); break;
     default: html = viewHome();
   }
   main.innerHTML = topbar() + html;
   if (r === 'ai') aiv.mount(main, ui.main);
+  if (r === 'sync') syncv.mount(main);
+  else syncv.leave();
   const c = ui.currentUid && S.cards.get(ui.currentUid);
   document.title = c ? `${label(c)} ${titleOf(c)}` : '卡片盒';
 }
@@ -535,6 +544,10 @@ function viewSettings() {
       <p class="muted small">每个卡片盒是一个独立的数据库文件，编号、链接、索引、AI 分析都各自独立，适合按课程或项目分开。</p>
       <div class="actions"><button type="button" data-act="boxes">管理卡片盒…</button></div>
     </section>
+    ${native ? `<section><h2>设备与同步</h2>
+      <p class="muted small">在同一个 Wi-Fi 下的电脑、iPhone 之间同步卡片盒：两台设备都打开“设备与同步”，在其中一台上点“同步”。</p>
+      <div class="actions"><a class="btn" href="#/sync">打开设备与同步</a></div>
+    </section>` : ''}
     <section><h2>数据</h2>
       <dl class="kv">
         <dt>卡片盒</dt><dd>${esc(ui.box)}</dd>
@@ -552,14 +565,21 @@ function viewSettings() {
       ${native ? '' : '<p class="muted small">你正在浏览器里使用卡片盒，数据保存在这个浏览器中。清除浏览器数据会删除它们，请定期导出 JSON。安装桌面应用后可以用“从 JSON 导入”迁移过去。</p>'}
     </section>
     <section><h2>AI（本地模型）</h2>
+      ${ai.canUseApple ? `<div class="field"><label>AI 引擎</label><select id="ai-provider">
+          <option value="ollama"${ai.isApple() ? '' : ' selected'}>Ollama（${backend.platform === 'ios' ? '电脑上的' : '本机'}，模型可选）</option>
+          <option value="apple"${ai.isApple() ? ' selected' : ''}>Apple 端侧模型（macOS / iOS 26 的 Apple 智能，系统自带）</option>
+        </select></div>
+        <p class="muted small">Apple 端侧模型不用安装和下载，但它比较小、一次能读的卡片较少；Ollama 的 ${esc(ai.cfg.model)} 回答更好，需要先安装。</p>` : ''}
       ${backend.platform === 'ios'
-        ? '<p class="muted small">iPhone / iPad 上跑不了 Ollama，但可以用家里电脑上的：在电脑上设置环境变量 <code>OLLAMA_HOST=0.0.0.0</code> 后重启 Ollama，再把下面的地址改成电脑的局域网地址，例如 <code>http://192.168.1.20:11434</code>。卡片只会发给局域网里的这台电脑。</p>'
-        : '<p class="muted small">AI 通过本机的 Ollama 运行，数据不会离开这台电脑。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>'}
+        ? '<p class="muted small">用 Ollama 时，可以连家里电脑上的：在电脑上设置环境变量 <code>OLLAMA_HOST=0.0.0.0</code> 后重启 Ollama，再把下面的地址改成电脑的局域网地址，例如 <code>http://192.168.1.20:11434</code>。卡片只会发给局域网里的这台电脑。</p>'
+        : '<p class="muted small">AI 在本机运行，数据不会离开这台电脑。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>'}
       <div class="grid2">
-        <div class="field"><label>模型</label><input id="ai-model" value="${esc(ai.cfg.model)}" autocapitalize="off"></div>
+        <div class="field"><label>Ollama 模型</label><input id="ai-model" value="${esc(ai.cfg.model)}" autocapitalize="off"></div>
         <div class="field"><label>Ollama 地址</label><input id="ai-base" value="${esc(ai.cfg.base)}" autocapitalize="off"></div>
       </div>
-      <div class="actions"><button type="button" data-act="ai-save">保存</button><a class="btn" href="#/ai">打开 AI 助手</a></div>
+      <div class="actions"><button type="button" data-act="ai-save">保存</button>
+        ${ai.canInstallOllama() ? '<button type="button" data-act="ai-install">一键安装 Ollama…</button>' : ''}
+        <a class="btn" href="#/ai">打开 AI 助手</a></div>
     </section>
     <section><h2>外观</h2>
       <div class="seg" role="radiogroup">${[['auto', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(([v, t]) =>
@@ -626,9 +646,15 @@ async function onMainClick(e) {
     case 'ai-organize': aiv.openOrganize(c); break;
     case 'ai-relate': aiv.openRelate(c); break;
     case 'ai-save':
-      ai.setCfg({ model: $('#ai-model').value.trim() || 'qwen3.5:4b', base: $('#ai-base').value.trim() || 'http://127.0.0.1:11434' });
+      ai.setCfg({
+        provider: $('#ai-provider')?.value || 'ollama',
+        model: $('#ai-model').value.trim() || 'qwen3.5:4b',
+        base: $('#ai-base').value.trim() || 'http://127.0.0.1:11434',
+      });
+      aiv.refreshStatus();
       toast('AI 设置已保存');
       break;
+    case 'ai-install': aiv.openSetup(); break;
     case 'move': openMove(c); break;
     case 'delete': confirmDelete(c); break;
     case 'restore': restore(c); break;

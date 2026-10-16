@@ -24,6 +24,9 @@ targets:
         buildPhase: resources
     dependencies:
       - sdk: libsqlite3.tbd
+      # the Apple Intelligence model (iOS 26) is optional: weak so the app still runs on iOS 16–18
+      - sdk: FoundationModels.framework
+        weak: true
     settings:
       base:
         PRODUCT_NAME: Slipbox
@@ -58,3 +61,4 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: 连接家里电脑上的 Ollama（本地 AI），以及在同一局域网里的设备之间同步卡片。
+        NSBonjourServices: [_slipbox._tcp]

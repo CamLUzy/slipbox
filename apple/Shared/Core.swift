@@ -20,7 +20,7 @@ final class Database {
     init(fileURL: URL) throws {
         self.fileURL = fileURL
         guard sqlite3_open(fileURL.path, &db) == SQLITE_OK else { throw AppError(message: "无法打开数据库 \(fileURL.path)") }
-        try exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")
+        try exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;")
         // `data` holds the full card as JSON; the other columns keep the file readable by other tools.
         try exec("""
             CREATE TABLE IF NOT EXISTS cards (
@@ -36,7 +36,11 @@ final class Database {
               data       TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS cards_zid ON cards(kind, zid);
+            CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS purged (uid TEXT PRIMARY KEY, at INTEGER NOT NULL);
             """)
+        // meta: boxId (the same box on every device) and sync.<deviceId> (last sync with that device);
+        // purged: tombstones of permanently deleted cards, so a sync does not bring them back.
     }
 
     deinit { close() }
@@ -118,16 +122,58 @@ final class Database {
         }
     }
 
-    func delete(uids: [String]) throws {
-        let stmt = try prepare("DELETE FROM cards WHERE uid = ?")
-        defer { sqlite3_finalize(stmt) }
+    /// Permanently deletes cards and remembers them as purged (at: when, ms; default now).
+    func delete(uids: [String], at times: [String: Int64] = [:]) throws {
+        let del = try prepare("DELETE FROM cards WHERE uid = ?")
+        defer { sqlite3_finalize(del) }
+        let tomb = try prepare("INSERT OR REPLACE INTO purged (uid, at) VALUES (?, ?)")
+        defer { sqlite3_finalize(tomb) }
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
         try exec("BEGIN IMMEDIATE")
         for uid in uids {
-            sqlite3_reset(stmt)
-            sqlite3_bind_text(stmt, 1, uid, -1, SQLITE_TRANSIENT)
-            sqlite3_step(stmt)
+            sqlite3_reset(del)
+            sqlite3_bind_text(del, 1, uid, -1, SQLITE_TRANSIENT)
+            sqlite3_step(del)
+            sqlite3_reset(tomb)
+            sqlite3_bind_text(tomb, 1, uid, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_int64(tomb, 2, times[uid] ?? now)
+            sqlite3_step(tomb)
         }
         try exec("COMMIT")
+    }
+
+    /// Tombstones as a JSON array [{uid, at}].
+    func purgedJSON() throws -> String {
+        let stmt = try prepare("SELECT uid, at FROM purged")
+        defer { sqlite3_finalize(stmt) }
+        var list: [[String: Any]] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            list.append(["uid": String(cString: sqlite3_column_text(stmt, 0)), "at": sqlite3_column_int64(stmt, 1)])
+        }
+        return String(decoding: try JSONSerialization.data(withJSONObject: list), as: UTF8.self)
+    }
+
+    func meta(_ key: String) -> String? {
+        guard let stmt = try? prepare("SELECT value FROM meta WHERE key = ?") else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
+        return sqlite3_step(stmt) == SQLITE_ROW ? String(cString: sqlite3_column_text(stmt, 0)) : nil
+    }
+
+    func setMeta(_ key: String, _ value: String) throws {
+        let stmt = try prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, value, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_DONE else { throw AppError(message: lastError) }
+    }
+
+    /// The box's identity across devices, created on first use.
+    func boxId() throws -> String {
+        if let id = meta("boxId") { return id }
+        let id = UUID().uuidString.lowercased()
+        try setMeta("boxId", id)
+        return id
     }
 
     func backup(to url: URL) throws {

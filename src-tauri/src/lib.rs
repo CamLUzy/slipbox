@@ -18,13 +18,15 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Runtime, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_opener::OpenerExt;
+
+mod sync;
 
 type Res<T> = Result<T, String>;
 
@@ -47,9 +49,12 @@ impl Database {
     fn open(path: &Path) -> Res<Self> {
         let conn = Connection::open(path).map_err(|e| format!("无法打开数据库 {}：{e}", path.display()))?;
         // `data` holds the full card as JSON; the other columns keep the file readable by other tools.
+        // meta: boxId (the same box on every device) and sync.<deviceId> (last sync with that device);
+        // purged: tombstones of permanently deleted cards, so a sync does not bring them back.
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
+             PRAGMA busy_timeout = 5000;
              CREATE TABLE IF NOT EXISTS cards (
                uid        TEXT PRIMARY KEY,
                zid        TEXT,
@@ -62,7 +67,9 @@ impl Database {
                updated_at INTEGER NOT NULL DEFAULT 0,
                data       TEXT NOT NULL
              );
-             CREATE INDEX IF NOT EXISTS cards_zid ON cards(kind, zid);",
+             CREATE INDEX IF NOT EXISTS cards_zid ON cards(kind, zid);
+             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS purged (uid TEXT PRIMARY KEY, at INTEGER NOT NULL);",
         )
         .map_err(err)?;
         Ok(Self { conn, path: path.to_path_buf() })
@@ -121,12 +128,47 @@ impl Database {
         tx.commit().map_err(err)
     }
 
-    fn delete(&mut self, uids: &[String]) -> Res<()> {
+    /// Permanently deletes cards and remembers them as purged (`at`: ms, default now).
+    fn delete(&mut self, uids: &[String], at: &HashMap<String, i64>) -> Res<()> {
+        let now = chrono::Utc::now().timestamp_millis();
         let tx = self.conn.transaction().map_err(err)?;
         for uid in uids {
             tx.execute("DELETE FROM cards WHERE uid = ?1", params![uid]).map_err(err)?;
+            tx.execute("INSERT OR REPLACE INTO purged (uid, at) VALUES (?1, ?2)", params![uid, at.get(uid).copied().unwrap_or(now)])
+                .map_err(err)?;
         }
         tx.commit().map_err(err)
+    }
+
+    /// Tombstones as a JSON array [{uid, at}].
+    fn purged_json(&self) -> Res<String> {
+        let mut stmt = self.conn.prepare("SELECT uid, at FROM purged").map_err(err)?;
+        let rows = stmt
+            .query_map([], |r| Ok(json!({ "uid": r.get::<_, String>(0)?, "at": r.get::<_, i64>(1)? })))
+            .map_err(err)?;
+        let list: Vec<Value> = rows.collect::<Result<_, _>>().map_err(err)?;
+        Ok(Value::Array(list).to_string())
+    }
+
+    fn meta(&self, key: &str) -> Option<String> {
+        self.conn.query_row("SELECT value FROM meta WHERE key = ?1", params![key], |r| r.get(0)).ok()
+    }
+
+    fn set_meta(&self, key: &str, value: &str) -> Res<()> {
+        self.conn
+            .execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?1, ?2)", params![key, value])
+            .map(|_| ())
+            .map_err(err)
+    }
+
+    /// The box's identity across devices, created on first use.
+    fn box_id(&self) -> Res<String> {
+        if let Some(id) = self.meta("boxId") {
+            return Ok(id);
+        }
+        let id = sync::random_id();
+        self.set_meta("boxId", &id)?;
+        Ok(id)
     }
 
     fn backup(&self, to: &Path) -> Res<()> {
@@ -272,6 +314,7 @@ struct AppState {
     zoom: Mutex<f64>,
     cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
     selftest_out: Option<PathBuf>,
+    sync: OnceLock<Arc<sync::SyncService>>,
 }
 
 impl AppState {
@@ -321,6 +364,7 @@ fn init_state(root: PathBuf, dev: bool, selftest_out: Option<PathBuf>) -> Res<Ap
         zoom: Mutex::new(1.0),
         cancels: Mutex::new(HashMap::new()),
         selftest_out,
+        sync: OnceLock::new(),
     })
 }
 
@@ -346,7 +390,7 @@ fn handle(app: &AppHandle, msg: &Value) -> Res<Value> {
                 .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
                 .unwrap_or_default();
-            state.current.lock().map_err(err)?.db.delete(&uids)?;
+            state.current.lock().map_err(err)?.db.delete(&uids, &HashMap::new())?;
             Ok(Value::Bool(true))
         }
         "info" => {
@@ -392,6 +436,23 @@ fn handle(app: &AppHandle, msg: &Value) -> Res<Value> {
             Ok(Value::Bool(true))
         }
         "startOllama" => Ok(Value::Bool(start_ollama())),
+        "installOllama" => Ok(Value::String(install_ollama(app, msg).to_string())),
+        "sync" => {
+            // LAN sync (sync.rs), started the first time the page asks for it
+            let svc = state.sync.get_or_init(|| {
+                let (to_page, for_box) = (app.clone(), app.clone());
+                sync::SyncService::new(
+                    state.boxes.root.clone(),
+                    move |event| {
+                        if let Some(w) = to_page.get_webview_window("main") {
+                            let _ = w.eval(format!("window.zkSyncEvent && window.zkSyncEvent({event})"));
+                        }
+                    },
+                    move || for_box.state::<AppState>().box_name(),
+                )
+            });
+            svc.command(msg)
+        }
         "title" => {
             let t = s("title");
             let name = state.box_name();
@@ -585,6 +646,88 @@ fn ollama(app: &AppHandle, msg: &Value) -> Value {
     result.unwrap_or_else(|e| json!({ "error": e }))
 }
 
+/// One-click install: the official OllamaSetup.exe from GitHub, run silently for this user
+/// (no administrator rights needed), then started. Progress {frac, text} goes to
+/// window.zkStream(id, …); the reply is {ok} or {error}; ollamaCancel stops the download.
+fn install_ollama(app: &AppHandle, msg: &Value) -> Value {
+    let state = app.state::<AppState>();
+    let id = msg["id"].as_str().unwrap_or("").to_string();
+    let cancel = Arc::new(AtomicBool::new(false));
+    if let Ok(mut c) = state.cancels.lock() {
+        c.insert(id.clone(), cancel.clone());
+    }
+    let window = app.get_webview_window("main");
+    let report = |frac: Option<f64>, text: &str| {
+        let mut p = json!({ "text": text });
+        if let Some(f) = frac {
+            p["frac"] = json!(f);
+        }
+        if let Some(w) = &window {
+            let _ = w.eval(format!("window.zkStream({}, {})", Value::String(id.clone()), Value::String(p.to_string())));
+        }
+    };
+    let run = || -> Res<()> {
+        if !cfg!(windows) {
+            return Err("这里只支持在 Windows 上一键安装".into());
+        }
+        report(Some(0.0), "正在下载 Ollama…");
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .tls_config(ureq::tls::TlsConfig::builder().provider(ureq::tls::TlsProvider::NativeTls).build())
+            .http_status_as_error(false)
+            .timeout_global(None)
+            .build()
+            .new_agent();
+        let mut resp = agent.get("https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe").call().map_err(err)?;
+        if resp.status() != 200 {
+            return Err(format!("下载失败（HTTP {}），请检查网络后重试", resp.status().as_u16()));
+        }
+        let total: u64 = resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|v| v.parse().ok()).unwrap_or(0);
+        let path = std::env::temp_dir().join("OllamaSetup.exe");
+        {
+            use std::io::{Read, Write};
+            let mut file = fs::File::create(&path).map_err(err)?;
+            let mut reader = resp.body_mut().as_reader();
+            let mut buf = vec![0u8; 1 << 16];
+            let (mut done, mut last) = (0u64, std::time::Instant::now());
+            loop {
+                if cancel.load(Ordering::Relaxed) {
+                    drop(file);
+                    let _ = fs::remove_file(&path);
+                    return Err("cancelled".into());
+                }
+                let n = reader.read(&mut buf).map_err(err)?;
+                if n == 0 {
+                    break;
+                }
+                file.write_all(&buf[..n]).map_err(err)?;
+                done += n as u64;
+                if total > 0 && last.elapsed() > Duration::from_millis(250) {
+                    last = std::time::Instant::now();
+                    report(Some(done as f64 / total as f64), "正在下载 Ollama…");
+                }
+            }
+        }
+        report(None, "正在安装 Ollama…");
+        let status = Command::new(&path).args(["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"]).status().map_err(err)?;
+        let _ = fs::remove_file(&path);
+        if !status.success() {
+            return Err(format!("Ollama 安装程序没有完成（{status}）"));
+        }
+        report(None, "正在启动 Ollama…");
+        start_ollama();
+        Ok(())
+    };
+    let result = run();
+    if let Ok(mut c) = state.cancels.lock() {
+        c.remove(&id);
+    }
+    match result {
+        Ok(()) => json!({ "ok": true }),
+        Err(e) if e == "cancelled" => json!({ "error": "cancelled", "cancelled": true }),
+        Err(e) => json!({ "error": e }),
+    }
+}
+
 /// Starts Ollama in the background. Returns false if it is not installed.
 fn start_ollama() -> bool {
     #[cfg(windows)]
@@ -635,6 +778,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             &item("zk:export-json", "导出 JSON…", Some("CmdOrCtrl+Shift+E"))?,
             &item("zk:export-md", "导出为 Markdown 文件…", None)?,
             &sep()?,
+            &item("zk:sync", "设备与同步…", Some("CmdOrCtrl+Shift+Y"))?,
             &item("zk:backup", "立即备份", Some("CmdOrCtrl+Shift+B"))?,
             &item("zk:reveal", "打开数据文件夹", None)?,
             &item("zk:settings", "设置与数据…", Some("CmdOrCtrl+,"))?,
@@ -759,8 +903,9 @@ fn selftest_script(path: &str) -> Res<String> {
 pub fn run() {
     let selftest = std::env::var("ZK_SELFTEST").ok();
     let mut builder = tauri::Builder::default();
+    // self-tests run several instances side by side (the LAN sync test needs two)
     #[cfg(desktop)]
-    {
+    if selftest.is_none() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
@@ -883,7 +1028,10 @@ mod tests {
         assert_eq!(all[0]["zid"], "1a");
         db.backup(&dir.join("backup.db")).unwrap();
         assert_eq!(count_cards(&dir.join("backup.db")), 1);
-        db.delete(&["a".into()]).unwrap();
+        db.delete(&["a".into()], &HashMap::new()).unwrap();
+        assert!(db.purged_json().unwrap().contains("\"uid\":\"a\""));
+        let id = db.box_id().unwrap();
+        assert_eq!(db.box_id().unwrap(), id);
         assert_eq!(db.count(), 0);
         let _ = fs::remove_dir_all(&dir);
     }

@@ -190,6 +190,9 @@ extension WebViewController: BridgeHost {
     func startOllama() -> Bool { false }
 
     /// Loopback or the local network only (Ollama on a computer at home started with OLLAMA_HOST=0.0.0.0).
+    var deviceName: String { UIDevice.current.name }
+    var platform: String { "ios" }
+
     func allowsOllama(host: String) -> Bool {
         let h = host.lowercased()
         if ["127.0.0.1", "localhost", "::1"].contains(h) || h.hasSuffix(".local") || h.hasPrefix("fe80:") { return true }

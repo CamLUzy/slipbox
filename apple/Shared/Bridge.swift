@@ -19,6 +19,17 @@ protocol BridgeHost: AnyObject {
     func allowsOllama(host: String) -> Bool
     /// Remove a deleted slip box's file in a recoverable way.
     func discard(_ url: URL) throws
+    /// This device's name as other devices see it when syncing, and "mac" or "ios".
+    var deviceName: String { get }
+    var platform: String { get }
+    /// Downloads and installs Ollama, reporting (fraction or nil, text); then starts it.
+    func installOllama(progress: @escaping (Double?, String) -> Void) async throws
+}
+
+extension BridgeHost {
+    func installOllama(progress: @escaping (Double?, String) -> Void) async throws {
+        throw AppError(message: "这台设备不能安装 Ollama")
+    }
 }
 
 final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
@@ -28,7 +39,8 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
     private(set) var backups: Backups
     weak var host: BridgeHost?
     weak var webView: WKWebView?
-    private var ollamaTasks: [String: Task<Void, Never>] = [:]
+    fileprivate var ollamaTasks: [String: Task<Void, Never>] = [:]
+    @MainActor private var syncService: SyncService?
 
     init(boxes: Boxes, name: String) throws {
         self.boxes = boxes
@@ -133,12 +145,38 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
                 replyHandler(true, nil)
             case "startOllama":
                 replyHandler(host?.startOllama() ?? false, nil)
+            case "installOllama":
+                installOllama(body, reply: replyHandler)
+            case "appleAI":
+                if body["op"] as? String == "status" {
+                    replyHandler(Self.jsonString(AppleAI.status()), nil)
+                } else {
+                    appleGenerate(body, reply: replyHandler)
+                }
+            case "sync":
+                Task { @MainActor in
+                    do { replyHandler(try await self.sync().command(body), nil) } catch { replyHandler(nil, error.localizedDescription) }
+                }
             default:
                 replyHandler(nil, "unknown command \(cmd)")
             }
         } catch {
             replyHandler(nil, error.localizedDescription)
         }
+    }
+
+    /// LAN sync (Sync.swift), started the first time the page asks for it.
+    @MainActor private func sync() -> SyncService {
+        if let s = syncService { return s }
+        let s = SyncService(boxes: boxes, defaultName: host?.deviceName ?? "卡片盒", platform: host?.platform ?? "mac")
+        s.currentBox = { [weak self] in self?.boxName ?? "" }
+        s.emit = { [weak self] event in
+            self?.webView?.callAsyncJavaScript("window.zkSyncEvent && window.zkSyncEvent(JSON.parse(e))", arguments: ["e": Self.jsonString(event)],
+                                                in: nil, in: .page, completionHandler: nil)
+        }
+        s.currentBoxChanged = { [weak s] box in s?.emit(["type": "changed", "box": box]) }
+        syncService = s
+        return s
     }
 
     static func jsonString(_ obj: [String: Any]) -> String {
@@ -200,6 +238,68 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             } catch is CancellationError {
                 result = ["error": "cancelled", "cancelled": true]
             } catch let e as URLError where e.code == .cancelled {
+                result = ["error": "cancelled", "cancelled": true]
+            } catch {
+                result = ["error": error.localizedDescription]
+            }
+            let text = Self.jsonString(result)
+            await MainActor.run {
+                self?.ollamaTasks[id] = nil
+                reply(text, nil)
+            }
+        }
+    }
+}
+
+extension Bridge {
+    /// The on-device Apple model (AppleAI.swift). Like the Ollama proxy: partial text goes to
+    /// window.zkStream(id, {"content": …}), the reply is {content} or {error}; ollamaCancel stops it.
+    /// One-click Ollama install: progress {frac, text} goes to window.zkStream(id, …); the reply
+    /// is {ok} or {error}; ollamaCancel stops the download.
+    fileprivate func installOllama(_ body: [String: Any], reply: @escaping (Any?, String?) -> Void) {
+        let id = body["id"] as? String ?? UUID().uuidString
+        ollamaTasks[id] = Task { [weak self] in
+            var result: [String: Any] = ["ok": true]
+            do {
+                guard let host = self?.host else { throw AppError(message: "无法安装") }
+                try await host.installOllama { frac, text in
+                    var p: [String: Any] = ["text": text]
+                    if let frac { p["frac"] = frac }
+                    let line = Self.jsonString(p)
+                    Task { @MainActor in
+                        self?.webView?.callAsyncJavaScript("window.zkStream(id, line)", arguments: ["id": id, "line": line],
+                                                           in: nil, in: .page, completionHandler: nil)
+                    }
+                }
+            } catch is CancellationError {
+                result = ["error": "cancelled", "cancelled": true]
+            } catch let e as URLError where e.code == .cancelled {
+                result = ["error": "cancelled", "cancelled": true]
+            } catch {
+                result = ["error": error.localizedDescription]
+            }
+            let text = Self.jsonString(result)
+            await MainActor.run {
+                self?.ollamaTasks[id] = nil
+                reply(text, nil)
+            }
+        }
+    }
+
+    fileprivate func appleGenerate(_ body: [String: Any], reply: @escaping (Any?, String?) -> Void) {
+        let id = body["id"] as? String ?? UUID().uuidString
+        ollamaTasks[id] = Task { [weak self] in
+            var result: [String: Any]
+            do {
+                let content = try await AppleAI.generate(body) { text in
+                    let line = Self.jsonString(["content": text])
+                    Task { @MainActor in
+                        self?.webView?.callAsyncJavaScript("window.zkStream(id, line)", arguments: ["id": id, "line": line],
+                                                           in: nil, in: .page, completionHandler: nil)
+                    }
+                }
+                result = ["content": content]
+            } catch is CancellationError {
                 result = ["error": "cancelled", "cancelled": true]
             } catch {
                 result = ["error": error.localizedDescription]

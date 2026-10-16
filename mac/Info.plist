@@ -17,6 +17,8 @@
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSAppTransportSecurity</key>
   <dict><key>NSAllowsLocalNetworking</key><true/></dict>
+  <key>NSLocalNetworkUsageDescription</key><string>在同一个 Wi-Fi 下的设备之间同步卡片盒。</string>
+  <key>NSBonjourServices</key><array><string>_slipbox._tcp</string></array>
   <key>NSHumanReadableCopyright</key><string>卢曼卡片笔记 · 数据保存在本机</string>
 </dict>
 </plist>

@@ -120,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             jsItem("导出 JSON…", "export-json", "e", [.command, .shift]),
             jsItem("导出为 Markdown 文件…", "export-md"),
             .separator(),
+            jsItem("设备与同步…", "sync", "y", [.command, .shift]),
             jsItem("立即备份", "backup", "b", [.command, .shift]),
             .separator(),
             item("关闭窗口", #selector(NSWindow.performClose(_:)), "w"),
@@ -275,6 +276,38 @@ extension AppDelegate: BridgeHost {
         return false
     }
 
+    /// The official Ollama.app from GitHub into /Applications (or ~/Applications), then start it.
+    func installOllama(progress: @escaping (Double?, String) -> Void) async throws {
+        let url = URL(string: "https://github.com/ollama/ollama/releases/latest/download/Ollama-darwin.zip")!
+        progress(0, "正在下载 Ollama…")
+        let zip = try await Downloader.download(url) { progress($0, "正在下载 Ollama…") }
+        defer { try? FileManager.default.removeItem(at: zip) }
+        progress(nil, "正在安装 Ollama…")
+        try await Task.detached {
+            let fm = FileManager.default
+            let tmp = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            defer { try? fm.removeItem(at: tmp) }
+            let ditto = Process()
+            ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            ditto.arguments = ["-x", "-k", zip.path, tmp.path]
+            try ditto.run()
+            ditto.waitUntilExit()
+            let app = tmp.appendingPathComponent("Ollama.app")
+            guard ditto.terminationStatus == 0, fm.fileExists(atPath: app.path) else { throw AppError(message: "下载的 Ollama 安装包不完整，请重试") }
+            let system = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            let dir = fm.isWritableFile(atPath: system.path) ? system : fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let target = dir.appendingPathComponent("Ollama.app")
+            if fm.fileExists(atPath: target.path) { try fm.trashItem(at: target, resultingItemURL: nil) }
+            try fm.moveItem(at: app, to: target)
+        }.value
+        progress(nil, "正在启动 Ollama…")
+        await MainActor.run { _ = self.startOllama() }
+    }
+
+    var deviceName: String { Host.current().localizedName ?? "Mac" }
+    var platform: String { "mac" }
+
     /// Card contents never leave this Mac: only Ollama on loopback.
     func allowsOllama(host: String) -> Bool {
         ["127.0.0.1", "localhost", "::1"].contains(host)
@@ -290,3 +323,55 @@ let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.regular)
 app.run()
+
+// MARK: - Download with progress (one-click Ollama install)
+
+final class Downloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var task: URLSessionDownloadTask?
+    private var saved: URL?
+    private var lastReport = Date.distantPast
+    private let progress: (Double) -> Void
+
+    private init(progress: @escaping (Double) -> Void) { self.progress = progress }
+
+    static func download(_ url: URL, progress: @escaping (Double) -> Void) async throws -> URL {
+        let d = Downloader(progress: progress)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (c: CheckedContinuation<URL, Error>) in
+                d.continuation = c
+                let session = URLSession(configuration: .default, delegate: d, delegateQueue: nil)
+                d.task = session.downloadTask(with: url)
+                d.task?.resume()
+            }
+        } onCancel: {
+            d.task?.cancel()
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64,
+                    totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        guard totalBytesExpectedToWrite > 0, Date().timeIntervalSince(lastReport) > 0.25 else { return }
+        lastReport = Date()
+        progress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        // the file is deleted when this returns, so keep it
+        let keep = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".zip")
+        if (try? FileManager.default.moveItem(at: location, to: keep)) != nil { saved = keep }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        session.finishTasksAndInvalidate()
+        let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
+        if let error {
+            continuation?.resume(throwing: error)
+        } else if let saved, status == 200 {
+            continuation?.resume(returning: saved)
+        } else {
+            continuation?.resume(throwing: AppError(message: "下载失败（HTTP \(status)），请检查网络后重试"))
+        }
+        continuation = nil
+    }
+}

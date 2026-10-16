@@ -12,6 +12,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$TMP"
 
 echo "• 编译 Swift…"
 FLAGS=(-O -framework Cocoa -framework WebKit -lsqlite3)
+# The Apple Intelligence model (macOS 26) is optional: weak-linked so the app still opens on macOS 12–15.
+# Command Line Tools older than 26 have no FoundationModels; the app then simply offers Ollama only.
+if [ -d "$(xcrun --show-sdk-path)/System/Library/Frameworks/FoundationModels.framework" ]; then
+  FLAGS+=(-Xlinker -weak_framework -Xlinker FoundationModels)
+fi
 swiftc "${FLAGS[@]}" -target arm64-apple-macos12 apple/Shared/*.swift mac/main.swift -o "$TMP/arm64"
 if swiftc "${FLAGS[@]}" -target x86_64-apple-macos12 apple/Shared/*.swift mac/main.swift -o "$TMP/x86_64" 2>/dev/null; then
   lipo -create "$TMP/arm64" "$TMP/x86_64" -output "$APP/Contents/MacOS/Zettelkasten"   # Apple 芯片 + Intel
