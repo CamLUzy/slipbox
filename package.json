@@ -1,13 +1,24 @@
 {
-  "name": "zettelkasten",
+  "name": "slipbox",
   "version": "1.0.0",
-  "description": "卡片盒：卢曼卡片笔记 Mac 应用，数据保存在本机",
+  "description": "卡片盒：卢曼卡片笔记应用，macOS 与 Windows，数据保存在本机",
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "bash mac/build.sh",
-    "install-app": "bash mac/build.sh --install",
+    "test": "node --test tests/*.test.js",
     "dev": "python3 -m http.server --directory web 8790",
-    "test": "node --test tests/*.test.js"
+    "tauri": "tauri",
+    "build:windows": "tauri build",
+    "build:mac": "bash mac/build.sh",
+    "install:mac": "bash mac/build.sh --install",
+    "screenshots": "bash scripts/screenshots.sh"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CamLUzy/slipbox.git"
   }
 }

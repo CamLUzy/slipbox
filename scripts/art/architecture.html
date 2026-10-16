@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><style>
+  :root { --bg:#ffffff; --box:#f6f1e7; --ink:#23211d; --ink2:#5d5850; --line:#cfc6b6; --accent:#c0503a; --blue:#2c6a96; --green:#4c7a3f; }
+  .dark { --bg:#0d1117; --box:#1c1b19; --ink:#ece7dd; --ink2:#b9b2a6; --line:#4a463f; --accent:#e0765f; --blue:#7fb3da; --green:#93c27f; }
+  html, body { margin: 0; }
+  body { width: 1040px; height: 600px; background: var(--bg); color: var(--ink); font-family: -apple-system, "PingFang SC", sans-serif; position: relative; overflow: hidden; }
+  .b { position: absolute; background: var(--box); border: 2px solid var(--line); border-radius: 14px; padding: 16px 20px; box-sizing: border-box; }
+  .b h3 { margin: 0 0 6px; font-size: 21px; }
+  .b p { margin: 0; color: var(--ink2); font-size: 15.5px; line-height: 1.55; }
+  .b code { font: 13.5px ui-monospace, Menlo, monospace; color: var(--blue); }
+  .ui { left: 200px; top: 30px; width: 640px; height: 120px; border-color: var(--accent); }
+  .mac { left: 70px; top: 220px; width: 400px; height: 116px; }
+  .win { left: 570px; top: 220px; width: 400px; height: 116px; }
+  .db { left: 70px; top: 450px; width: 560px; height: 116px; }
+  .ai { left: 680px; top: 450px; width: 290px; height: 116px; border-style: dashed; }
+  .lbl { position: absolute; font-size: 14px; color: var(--ink2); background: var(--bg); padding: 2px 8px; }
+  svg { position: absolute; left: 0; top: 0; }
+</style></head><body>
+  <svg width="1040" height="600"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line)"/></marker></defs>
+    <g stroke="var(--line)" stroke-width="2.5" fill="none">
+      <path d="M 420 153 L 290 216" marker-start="url(#a)" marker-end="url(#a)"/>
+      <path d="M 620 153 L 750 216" marker-start="url(#a)" marker-end="url(#a)"/>
+      <path d="M 270 339 L 270 446" marker-end="url(#a)"/>
+      <path d="M 690 339 L 560 446" marker-end="url(#a)"/>
+      <path d="M 860 339 L 860 446" marker-end="url(#a)" stroke-dasharray="7 6"/>
+      <path d="M 430 339 L 430 395 L 790 395 L 790 446" marker-end="url(#a)" stroke-dasharray="7 6"/>
+    </g></svg>
+  <div class="b ui"><h3>共享界面 <code>web/</code></h3><p>原生 HTML · CSS · JavaScript，无需构建。Folgezettel 编号、Markdown 与 [[链接]]、索引、关系图、AI 面板。两个平台用的是同一份代码。</p></div>
+  <div class="lbl" style="left:446px;top:172px">同一套 zk 消息协议</div>
+  <div class="lbl" style="left:600px;top:383px">AI 请求经外壳转发，只连本机</div>
+  <div class="b mac"><h3>macOS 外壳</h3><p><code>mac/main.swift</code><br>Swift + WKWebView，约 1 MB</p></div>
+  <div class="b win"><h3>Windows 外壳</h3><p><code>src-tauri/</code><br>Rust + Tauri 2 + WebView2，便携 exe 或安装包</p></div>
+  <div class="b db"><h3>你的数据</h3><p><code>boxes/&lt;卡片盒名&gt;.db</code> 每个卡片盒一个 SQLite 文件，两个平台通用<br><code>backups/&lt;卡片盒名&gt;/</code> 每天自动备份，保留 30 份</p></div>
+  <div class="b ai"><h3>本地 AI（可选）</h3><p>Ollama · <code>qwen3.5:4b</code><br>点击 AI 功能时才加载</p></div>
+</body></html>

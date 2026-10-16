@@ -1,0 +1,56 @@
+<div align="center">
+
+<img src="assets/banner.png" alt="Slipbox" width="720">
+
+**A Luhmann-style slip box that you actually own.**
+
+Permanent card IDs, links and backlinks, a keyword register, relation graphs and a local AI,<br>
+on macOS and Windows, with every card kept on your own computer.
+
+[Download](https://github.com/CamLUzy/slipbox/releases/latest) · [中文说明](README.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
+
+</div>
+
+> The app itself is in Chinese; this page is a short English summary.
+
+## What it is
+
+Niklas Luhmann wrote more than seventy books with a wooden box of index cards. Every card had a
+fixed address (`1`, `1a`, `1a1` …), cards pointed to each other with reasons, and a thin keyword
+register gave entry points into trains of thought. Slipbox brings exactly that to the desktop:
+
+- Fleeting notes, literature cards and permanent cards; *continue* and *branch* compute the next
+  free Folgezettel ID; renumbering moves a whole branch and rewrites every link to it.
+- `[[1a2]]` links and `[[@citekey]]` citations with autocomplete, backlinks on every card, a
+  keyword register, an ID tree, random walks, full-text search and several slip boxes.
+- Relation graphs with hover highlighting, and an optional local AI through
+  [Ollama](https://ollama.com) (`qwen3.5:4b` by default) that suggests how to turn a note into a
+  permanent card, how cards relate, and answers questions citing your cards. The model is only
+  loaded when you click an AI button, and the app only talks to Ollama on `localhost`.
+- One SQLite file per slip box, the same format on macOS and Windows, daily backups, JSON and
+  Markdown export. No account, no server, no telemetry.
+
+## Install
+
+From the [latest release](https://github.com/CamLUzy/slipbox/releases/latest):
+
+- **Windows 10/11:** `Slipbox-<version>-windows-x64-setup.exe` (installer) or
+  `Slipbox-<version>-windows-x64-portable.exe` (single file, needs WebView2, which Windows 11
+  ships with). The files are not code-signed: choose *More info → Run anyway* in SmartScreen.
+- **macOS 12+:** `Slipbox-<version>-macos.zip`, a universal app. If macOS refuses to open it, use
+  *System Settings → Privacy & Security → Open Anyway*.
+
+To try it with sample cards, use *设置与数据 → 从 JSON 导入* and pick
+[`docs/demo/demo-box.json`](docs/demo/demo-box.json).
+
+## How it is built
+
+`web/` is the whole UI in plain HTML, CSS and JavaScript (no build step). `mac/main.swift` wraps it
+in a WKWebView window (about 1 MB); `src-tauri/` wraps it in Tauri 2 with WebView2 on Windows. Both
+shells answer the same `zk` messages (cards, slip boxes, backups, export, the Ollama proxy), and
+both have a headless self-test mode that CI runs against the packaged app on real Windows and
+macOS machines. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+## License
+
+[MIT](LICENSE).

@@ -1,0 +1,43 @@
+name: 报告 bug
+description: 应用出错、崩溃或行为和预期不一致
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 谢谢反馈！写得越具体，越快能修好。请不要贴出你卡片里的隐私内容。
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 系统
+      options: [Windows 11, Windows 10, macOS, 浏览器（npm run dev）]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 帮助 → 关于卡片盒，或下载的文件名
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开某张卡片
+        2. 点“改号”，输入 …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望的结果与实际的结果
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截图或其他信息
+      description: 和 AI 有关的问题请写上模型名和 Ollama 版本

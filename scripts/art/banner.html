@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><style>
+  html, body { margin: 0; }
+  body { width: 1440px; height: 520px; background: #efe9dd; font-family: -apple-system, "PingFang SC", sans-serif; color: #23211d; overflow: hidden; position: relative; }
+  .left { position: absolute; left: 110px; top: 118px; }
+  .row { display: flex; align-items: center; gap: 34px; }
+  .row img { width: 170px; height: 170px; }
+  h1 { margin: 0; font-size: 104px; font-weight: 700; letter-spacing: 6px; line-height: 1; }
+  .en { font: 600 34px ui-monospace, "SF Mono", Menlo, monospace; color: #c0503a; letter-spacing: 3px; margin-top: 14px; }
+  .tag { margin-top: 48px; font-size: 30px; color: #5d5850; letter-spacing: 1px; }
+  .tag b { color: #23211d; font-weight: 600; }
+  .cards { position: absolute; left: 860px; top: 52px; width: 520px; height: 420px; }
+  .card { position: absolute; width: 230px; height: 128px; background: #fffdf8; border-radius: 6px; box-shadow: 0 2px 4px rgba(60,50,30,.08), 0 10px 30px rgba(60,50,30,.12); padding: 16px 18px; box-sizing: border-box; }
+  .card .id { font: 700 24px ui-monospace, Menlo, monospace; color: #2c6a96; }
+  .card .rule { height: 3px; background: #c0503a; margin: 8px 0 12px; }
+  .card .l { height: 9px; border-radius: 5px; background: #ddd5c6; margin: 9px 0; }
+  svg { position: absolute; left: 0; top: 0; }
+</style></head><body>
+  <div class="left">
+    <div class="row"><img src="../../mac/AppIcon.png"><div><h1>卡片盒</h1><div class="en">SLIPBOX</div></div></div>
+    <div class="tag"><b>卢曼卡片笔记法</b> · 固定编号 · 双向链接 · 关系图 · 本地 AI<br>macOS 与 Windows，所有卡片只保存在你的电脑上</div>
+  </div>
+  <div class="cards">
+    <svg width="520" height="420"><g fill="none" stroke="#2c6a96" stroke-width="3" stroke-dasharray="7 6" opacity=".55">
+      <path d="M 120 120 C 120 170, 210 170, 250 200"/><path d="M 345 260 C 400 280, 400 320, 360 330"/><path d="M 230 70 C 330 40, 420 80, 430 130"/></g></svg>
+    <div class="card" style="left:10px;top:20px;transform:rotate(-4deg)"><div class="id">1</div><div class="rule"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div></div>
+    <div class="card" style="left:290px;top:110px;transform:rotate(3deg)"><div class="id">1a</div><div class="rule"></div><div class="l" style="width:70%"></div><div class="l" style="width:85%"></div></div>
+    <div class="card" style="left:120px;top:200px;transform:rotate(-1deg)"><div class="id">1a1</div><div class="rule"></div><div class="l" style="width:75%"></div><div class="l" style="width:50%"></div></div>
+    <div class="card" style="left:300px;top:300px;transform:rotate(5deg)"><div class="id">2</div><div class="rule"></div><div class="l" style="width:65%"></div><div class="l" style="width:80%"></div></div>
+  </div>
+</body></html>

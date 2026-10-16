@@ -1,0 +1,280 @@
+{
+ "app": "slipbox",
+ "name": "卡片盒方法（示例）",
+ "cards": [
+  {
+   "uid": "439e5094-08c1-5a76-b217-64ec26faa136",
+   "kind": "literature",
+   "zid": "Luhmann1981",
+   "title": "与卡片盒沟通（Kommunikation mit Zettelkästen）",
+   "body": "卢曼描述了他用了几十年的卡片盒：固定编号、卡片之间的链接和一份很薄的关键词索引。他把卡片盒称为“沟通伙伴”，因为它能给出他自己都没预料到的组合。",
+   "keywords": [],
+   "meta": {
+    "author": "Niklas Luhmann",
+    "year": "1981",
+    "source": "Öffentliche Meinung und sozialer Wandel"
+   },
+   "createdAt": 1791640800000,
+   "updatedAt": 1791648000000,
+   "deleted": false
+  },
+  {
+   "uid": "9ce3e8d7-e847-589d-b58b-f20d209184e3",
+   "kind": "literature",
+   "zid": "Ahrens2017",
+   "title": "卡片笔记写作法（How to Take Smart Notes）",
+   "body": "把卢曼的方法整理成可以照做的流程：闪念笔记 → 文献笔记 → 永久笔记 → 写作。核心观点：写作不是研究的结果，而是研究本身进行的方式。",
+   "keywords": [],
+   "meta": {
+    "author": "Sönke Ahrens",
+    "year": "2017",
+    "source": "CreateSpace"
+   },
+   "createdAt": 1791644400000,
+   "updatedAt": 1791651600000,
+   "deleted": false
+  },
+  {
+   "uid": "f0b210eb-4cd0-5004-959c-c6d674b58fd0",
+   "kind": "note",
+   "zid": "1",
+   "title": "卡片盒是一个可以对话的伙伴",
+   "body": "当卡片之间的链接足够多时，从任何一张卡片出发都能走到意料之外的地方。卡片盒不只是存储，它会“回答”你没有想到要问的问题。\n\n前提是两件事：每张卡片有固定的地址（[[1a]]），以及卡片之间有写明理由的链接（[[3]]）。\n\n参见 [[@Luhmann1981]]",
+   "keywords": [
+    "卡片盒"
+   ],
+   "meta": {},
+   "createdAt": 1791648000000,
+   "updatedAt": 1791655200000,
+   "deleted": false
+  },
+  {
+   "uid": "701b3c72-2b4a-5f9d-8cc3-c5af6c5eec74",
+   "kind": "note",
+   "zid": "1a",
+   "title": "固定编号让每张卡片都有一个永久地址",
+   "body": "编号一旦给出就不再改变，所以别的卡片可以放心地写 [[1a]] 来引用它。\n\n编号的规则见 [[1a1]]；它和分类的区别见 [[1a2]]。",
+   "keywords": [
+    "编号"
+   ],
+   "meta": {},
+   "createdAt": 1791655200000,
+   "updatedAt": 1791662400000,
+   "deleted": false
+  },
+  {
+   "uid": "6f6a7263-f9f1-5958-a39b-f31900ec473f",
+   "kind": "note",
+   "zid": "1a1",
+   "title": "编号可以在任意位置插入新卡片",
+   "body": "数字和字母交替：在 1 后面续写是 2 或 1a，从 1a 分支是 1a1、1a2。因为可以无限插入，所以不需要预先规划结构，新想法总能放到离它最近的旧想法旁边。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791658800000,
+   "updatedAt": 1791666000000,
+   "deleted": false
+  },
+  {
+   "uid": "849d48e9-68e5-5fd3-9f42-89861659950a",
+   "kind": "note",
+   "zid": "1a2",
+   "title": "编号是地址，不是分类",
+   "body": "1a 不代表“第一类的 a 小类”，它只说明这张卡片最早是接着 1 写的。一张卡片可以同时属于好几个主题，靠的是链接（[[3]]）和索引（[[4]]），而不是它的编号。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791666000000,
+   "updatedAt": 1791673200000,
+   "deleted": false
+  },
+  {
+   "uid": "173dbf8a-fc19-5e3b-959a-9c2d4487ab74",
+   "kind": "note",
+   "zid": "1b",
+   "title": "让结构从卡片里长出来，而不是预先设计目录",
+   "body": "预先设计的目录会逼你把新想法塞进旧格子。卡片盒的结构来自一次次“续写”和“分支”，回头看时，主题序列自己就成形了（[[1a2]]）。\n\n需要从外面进入某个主题时，用索引（[[4]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791673200000,
+   "updatedAt": 1791680400000,
+   "deleted": false
+  },
+  {
+   "uid": "af03f468-8370-5ff2-bc0b-dc0621e5633e",
+   "kind": "note",
+   "zid": "2",
+   "title": "一张卡片只写一个观点",
+   "body": "只写一个观点，卡片才能被精确地链接：链接指向的是一个观点，而不是一页混杂的笔记。\n\n标题写成一句完整的判断，而不是一个主题词。怎么写见 [[2a]]、[[2b]]。",
+   "keywords": [
+    "原子性"
+   ],
+   "meta": {},
+   "createdAt": 1791723600000,
+   "updatedAt": 1791730800000,
+   "deleted": false
+  },
+  {
+   "uid": "3897c7ed-c7f5-54e5-a517-9c4ab5eb22f2",
+   "kind": "note",
+   "zid": "2a",
+   "title": "用自己的话写，才知道自己是否理解",
+   "body": "如果没法不看原文把一个观点复述出来，说明还没有真正理解它。摘抄只是搬运，改写才是思考（[[@Ahrens2017]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791730800000,
+   "updatedAt": 1791738000000,
+   "deleted": false
+  },
+  {
+   "uid": "f5a7608a-d14a-59f5-9f3b-797aa23f21f9",
+   "kind": "note",
+   "zid": "2b",
+   "title": "卡片要写给未来的自己：脱离上下文也能读懂",
+   "body": "半年后再看这张卡片时，你已经忘了当时在读什么书、为什么写下它。所以卡片里要交代清楚背景，引用要写出处。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791738000000,
+   "updatedAt": 1791745200000,
+   "deleted": false
+  },
+  {
+   "uid": "2898287d-695b-5480-ba73-7eeea09efc60",
+   "kind": "note",
+   "zid": "3",
+   "title": "链接比卡片本身更重要",
+   "body": "一张孤立的卡片几乎没有价值。卡片盒的价值来自卡片之间的连接，以及这些连接带来的意外组合（[[1]]）。\n\n链接怎么写见 [[3a]]，它带来的效果见 [[3b]]。",
+   "keywords": [
+    "链接"
+   ],
+   "meta": {},
+   "createdAt": 1791745200000,
+   "updatedAt": 1791752400000,
+   "deleted": false
+  },
+  {
+   "uid": "f759056e-6d7a-5a06-90c8-d385fc36d53b",
+   "kind": "note",
+   "zid": "3a",
+   "title": "链接要写明理由，否则过一阵就看不懂",
+   "body": "只写 [[2]] 不够，要说明为什么相关：是支持、反驳、举例，还是同一个问题的另一面。理由本身往往就是一个新的想法。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791752400000,
+   "updatedAt": 1791759600000,
+   "deleted": false
+  },
+  {
+   "uid": "05ed0951-c52d-570c-b55d-936fcda5c7d7",
+   "kind": "note",
+   "zid": "3b",
+   "title": "反向链接让旧卡片在新的语境里重新出现",
+   "body": "写新卡片时链接到旧卡片，旧卡片的“被引用”里就多了一条路。下一次读到旧卡片，会顺着这条路看到它在新语境里的意思（[[3]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791759600000,
+   "updatedAt": 1791766800000,
+   "deleted": false
+  },
+  {
+   "uid": "3302039d-d85f-58ee-b05c-3cefcf251ebe",
+   "kind": "note",
+   "zid": "4",
+   "title": "索引只是入口，不是目录",
+   "body": "关键词索引不负责列出所有相关卡片，只负责告诉你从哪几张卡片进入一串思路。进去之后，沿着编号序列和链接走（[[1b]]）。",
+   "keywords": [
+    "索引"
+   ],
+   "meta": {},
+   "createdAt": 1791810000000,
+   "updatedAt": 1791817200000,
+   "deleted": false
+  },
+  {
+   "uid": "0bbe47b5-4dd3-5676-bc80-e35735d0b720",
+   "kind": "note",
+   "zid": "4a",
+   "title": "每个关键词只指向少数几张入口卡片",
+   "body": "如果一个关键词挂了几十张卡片，它就退化成了分类。好的入口卡片本身会链接到其余相关卡片（[[4]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791817200000,
+   "updatedAt": 1791824400000,
+   "deleted": false
+  },
+  {
+   "uid": "0e775881-466d-5dc7-aca6-e2cf66475193",
+   "kind": "note",
+   "zid": "5",
+   "title": "闪念要尽快整理，否则收件箱会变成资料堆",
+   "body": "闪念笔记只是提醒，过几天就会看不懂。每天花几分钟把它们改写成永久卡片（[[2]]），或者直接删掉。",
+   "keywords": [
+    "工作流"
+   ],
+   "meta": {},
+   "createdAt": 1791896400000,
+   "updatedAt": 1791903600000,
+   "deleted": false
+  },
+  {
+   "uid": "cd52a131-f55f-597b-8b51-031e7d471f56",
+   "kind": "note",
+   "zid": "5a",
+   "title": "读书时先写文献卡片，再写永久卡片",
+   "body": "文献卡片记下书里说了什么、在哪一页；永久卡片写的是你自己怎么看，并链接到已有的卡片（[[2a]]，[[@Ahrens2017]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791903600000,
+   "updatedAt": 1791910800000,
+   "deleted": false
+  },
+  {
+   "uid": "fd4e2ac2-dc1f-5a32-8feb-92337fbab4ad",
+   "kind": "note",
+   "zid": "5b",
+   "title": "写作从卡片盒里取材，而不是从空白页开始",
+   "body": "当一串卡片已经互相链接好，写一篇文章只是把它们按顺序排开、补上过渡。空白页的恐惧来自没有积累（[[@Ahrens2017]]）。",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791910800000,
+   "updatedAt": 1791918000000,
+   "deleted": false
+  },
+  {
+   "uid": "6f4ceebc-3304-5653-8494-2ce1cce5b690",
+   "kind": "note",
+   "zid": "6",
+   "title": "本地 AI 只提建议，链接由自己决定",
+   "body": "AI 可以帮你找出可能相关的卡片、猜测它们的关系，但判断“为什么相关”正是思考本身（[[3a]]）。所以 AI 的结果只能是草稿，写不写进卡片由你决定。",
+   "keywords": [
+    "AI"
+   ],
+   "meta": {},
+   "createdAt": 1791982800000,
+   "updatedAt": 1791990000000,
+   "deleted": false
+  },
+  {
+   "uid": "ff2f05c4-f5b0-512e-a030-41f451fdc264",
+   "kind": "fleeting",
+   "zid": null,
+   "title": "",
+   "body": "随机漫步时发现：1a2 和 4 其实在说同一件事——结构不该来自分类？",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1791997200000,
+   "updatedAt": 1792004400000,
+   "deleted": false
+  },
+  {
+   "uid": "321fe541-5bf8-52ac-a105-51f546799486",
+   "kind": "fleeting",
+   "zid": null,
+   "title": "",
+   "body": "把考试错题也做成卡片，链接到对应的概念卡片",
+   "keywords": [],
+   "meta": {},
+   "createdAt": 1792000800000,
+   "updatedAt": 1792008000000,
+   "deleted": false
+  }
+ ]
+}

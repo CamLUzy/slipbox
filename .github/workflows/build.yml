@@ -1,0 +1,137 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test
+
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build (portable exe + NSIS installer)
+        run: npx tauri build
+      - name: Self-test the packaged app
+        shell: pwsh
+        run: |
+          function Invoke-SelfTest($script) {
+            $out = Join-Path $env:RUNNER_TEMP "$script.json"
+            $env:ZK_DATA_DIR = Join-Path $env:RUNNER_TEMP "data-$script"
+            $env:ZK_SELFTEST = Join-Path $PWD "tests\$script.js"
+            $env:ZK_SELFTEST_OUT = $out
+            $p = Start-Process -FilePath src-tauri\target\release\Slipbox.exe -PassThru
+            if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "$script timed out" }
+            $text = Get-Content $out -Raw -Encoding utf8
+            Write-Host "$script -> $text"
+            if ($text.StartsWith('SELFTEST ERROR')) { throw "$script failed" }
+            return $text | ConvertFrom-Json
+          }
+          $r = Invoke-SelfTest 'app-selftest'
+          if (-not $r.native -or $r.persisted.Count -ne 3 -or $r.cardTitle -ne '第一张' -or $r.links.Count -ne 2) { throw 'app-selftest: unexpected result' }
+          $b = Invoke-SelfTest 'app-boxes-selftest'
+          if ($b.platform -ne 'tauri' -or $b.renamedCards -ne 1 -or $b.afterDelete.Count -ne 1 -or $b.badName -eq 'accepted') { throw 'app-boxes-selftest: unexpected result' }
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $v = (Get-Content src-tauri\tauri.conf.json -Raw | ConvertFrom-Json).version
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item src-tauri\target\release\Slipbox.exe "out\Slipbox-$v-windows-x64-portable.exe"
+          $setup = Get-ChildItem src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
+          Copy-Item $setup.FullName "out\Slipbox-$v-windows-x64-setup.exe"
+          Get-ChildItem out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bash mac/build.sh
+      - name: Self-test the packaged app
+        run: |
+          run_selftest() {
+            out="$RUNNER_TEMP/$1.json"
+            ZK_DATA_DIR="$RUNNER_TEMP/data-$1" ZK_SELFTEST="$PWD/tests/$1.js" \
+              "dist/卡片盒.app/Contents/MacOS/Zettelkasten" > "$out" &
+            pid=$!
+            for _ in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+            if kill -0 $pid 2>/dev/null; then kill $pid; echo "$1 timed out"; exit 1; fi
+            echo "$1 -> $(cat "$out")"
+            grep -q 'SELFTEST ERROR' "$out" && exit 1
+            node -e "$2" "$out"
+          }
+          run_selftest app-selftest "const r = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); if (!r.native || r.persisted.length !== 3 || r.cardTitle !== '第一张') process.exit(1)"
+          run_selftest app-boxes-selftest "const r = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); if (r.platform !== 'mac' || r.renamedCards !== 1 || r.afterDelete.length !== 1 || r.badName === 'accepted') process.exit(1)"
+      - name: Package
+        run: |
+          v=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          mkdir -p out
+          ditto -c -k --keepParent "dist/卡片盒.app" "out/Slipbox-$v-macos.zip"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Checksums and notes
+        run: |
+          cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt && cd ..
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          printf '\n---\n**下载**：Windows 选 `*-setup.exe`（安装版）或 `*-portable.exe`（便携版）；macOS 选 `*-macos.zip`。安装包没有代码签名，首次打开的提示见 [Windows](https://github.com/%s/blob/main/docs/WINDOWS.md) / [macOS](https://github.com/%s/blob/main/docs/MAC.md)。用 `SHA256SUMS.txt` 校验下载。\n' "$GITHUB_REPOSITORY" "$GITHUB_REPOSITORY" >> notes.md
+          cat notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "卡片盒 $GITHUB_REF_NAME" --notes-file notes.md

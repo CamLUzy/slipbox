@@ -151,9 +151,13 @@ final class Boxes {
         try migrateLegacy()
     }
 
+    /// Names must also be valid file names on Windows, so boxes can move between systems.
     static func isValid(_ name: String) -> Bool {
-        let n = name.trimmingCharacters(in: .whitespaces)
-        return !n.isEmpty && n == name && n.count <= 60 && !n.hasPrefix(".") && n.rangeOfCharacter(from: CharacterSet(charactersIn: "/\\:")) == nil
+        let reserved = Set(["CON", "PRN", "AUX", "NUL"] + (1...9).flatMap { ["COM\($0)", "LPT\($0)"] })
+        let bad = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters)
+        return !name.isEmpty && name.trimmingCharacters(in: .whitespaces) == name && name.count <= 60
+            && !name.hasPrefix(".") && !name.hasSuffix(".")
+            && name.rangeOfCharacter(from: bad) == nil && !reserved.contains(name.uppercased())
     }
 
     func file(_ name: String) -> URL { dir.appendingPathComponent("\(name).db") }
@@ -302,7 +306,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             let list = boxes.list().map { ["name": $0, "cards": $0 == boxName ? -1 : boxes.count($0)] as [String: Any] }
             return Self.jsonString(["current": boxName, "boxes": list])
         case "createBox":
-            guard Boxes.isValid(name) else { throw AppError(message: "名称不能为空，也不能包含 / \\ : 或以 . 开头") }
+            guard Boxes.isValid(name) else { throw AppError(message: "名称不能为空，不能以 . 开头或结尾，也不能包含 / \\ : * ? \" < > |") }
             guard !boxes.exists(name) else { throw AppError(message: "已经有叫“\(name)”的卡片盒了") }
             try open(box: name)
             return true
@@ -312,7 +316,7 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             return true
         case "renameBox":
             let to = body["to"] as? String ?? ""
-            guard Boxes.isValid(to) else { throw AppError(message: "名称不能为空，也不能包含 / \\ : 或以 . 开头") }
+            guard Boxes.isValid(to) else { throw AppError(message: "名称不能为空，不能以 . 开头或结尾，也不能包含 / \\ : * ? \" < > |") }
             guard boxes.exists(name), !boxes.exists(to) else { throw AppError(message: "名称“\(to)”已被使用") }
             let current = name == boxName
             if current { db.close() }

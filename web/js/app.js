@@ -8,6 +8,8 @@ import * as aiv from './aiview.js';
 import * as ai from './ai.js';
 import { esc, uuid, timeAgo, fmtDate, debounce, splitKeywords, firstLine, lsGet, lsSet } from './util.js';
 
+// Shortcut labels: ⌘ on the Mac, Ctrl+ elsewhere.
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const app = document.getElementById('app');
@@ -94,6 +96,7 @@ window.zkMenu = (action) => {
     case 'export-md': exportMarkdown(); break;
     case 'import-json': importJson(); break;
     case 'backup': backupNow(); break;
+    case 'reveal': backend.reveal(); break;
     case 'ai': location.hash = '#/ai'; break;
     case 'boxes': openBoxes(); break;
     case 'ai-map': location.hash = '#/ai/map'; break;
@@ -111,7 +114,7 @@ function renderShell() {
   app.innerHTML = `<div class="layout">
     <aside class="side">
       <header class="side-head">
-        <button type="button" class="brand" id="box-btn" title="切换卡片盒 (⌘O)">${logo()}<span class="box-name">${esc(ui.box)}</span><span class="caret">▾</span></button>
+        <button type="button" class="brand" id="box-btn" title="切换卡片盒 (${MOD}O)">${logo()}<span class="box-name">${esc(ui.box)}</span><span class="caret">▾</span></button>
         <button class="icon-btn" id="btn-capture" type="button" title="记录闪念 (N)" aria-label="记录闪念">＋</button>
       </header>
       <div class="search"><input id="q" type="search" placeholder="搜索编号、标题、正文…" autocomplete="off" enterkeyhint="search"></div>
@@ -267,7 +270,7 @@ function listTree() {
 
 function listInbox() {
   const ix = index();
-  const box = `<div class="capture-inline"><textarea id="inbox-capture" rows="3" placeholder="随手记下一个想法… (⌘Enter 保存)"></textarea>
+  const box = `<div class="capture-inline"><textarea id="inbox-capture" rows="3" placeholder="随手记下一个想法… (${MOD}Enter 保存)"></textarea>
     <button type="button" class="primary" data-act="inbox-add">记下</button></div>`;
   if (!ix.fleeting.length) return box + `<p class="empty">收件箱是空的。<br>闪念笔记先放这里，之后再整理成卡片盒里的正式卡片。</p>`;
   return box + ix.fleeting.map((c) => cardRow(c, `<span class="row-meta">${timeAgo(c.createdAt)}</span>`)).join('');
@@ -540,16 +543,16 @@ function viewSettings() {
         ${native ? `<dt>自动备份</dt><dd>每天一次，保留最近 30 份${backups[0] ? ` · 最近一次 ${esc(backups[0])}` : ''}</dd>` : ''}
       </dl>
       <div class="actions">
-        ${native ? `<button type="button" data-act="reveal">在 Finder 中显示</button><button type="button" data-act="backup">立即备份</button>` : ''}
+        ${native ? `<button type="button" data-act="reveal">${backend.platform === 'mac' ? '在 Finder 中显示' : '在资源管理器中显示'}</button><button type="button" data-act="backup">立即备份</button>` : ''}
         <button type="button" data-act="export-json">导出 JSON</button>
         ${native ? '<button type="button" data-act="export-md">导出为 Markdown 文件</button>' : ''}
         <button type="button" data-act="import-json">从 JSON 导入</button>
         <a class="btn" href="#/trash">回收站</a>
       </div>
-      ${native ? '' : '<p class="muted small">你正在浏览器里使用卡片盒，数据保存在这个浏览器中。清除浏览器数据会删除它们，请定期导出 JSON。安装 Mac 应用后可以用“从 JSON 导入”迁移过去。</p>'}
+      ${native ? '' : '<p class="muted small">你正在浏览器里使用卡片盒，数据保存在这个浏览器中。清除浏览器数据会删除它们，请定期导出 JSON。安装桌面应用后可以用“从 JSON 导入”迁移过去。</p>'}
     </section>
     <section><h2>AI（本地模型）</h2>
-      <p class="muted small">AI 通过本机的 Ollama 运行，数据不会离开这台 Mac。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>
+      <p class="muted small">AI 通过本机的 Ollama 运行，数据不会离开这台电脑。只有点击 AI 功能时才会加载模型，闲置后自动释放内存。</p>
       <div class="grid2">
         <div class="field"><label>模型</label><input id="ai-model" value="${esc(ai.cfg.model)}" autocapitalize="off"></div>
         <div class="field"><label>Ollama 地址</label><input id="ai-base" value="${esc(ai.cfg.base)}" autocapitalize="off"></div>
@@ -562,9 +565,9 @@ function viewSettings() {
     </section>
     <section><h2>快捷键</h2>
       <ul class="plain small keys">
-        <li><kbd>N</kbd> 记录闪念</li><li><kbd>/</kbd> 或 <kbd>⌘F</kbd> 搜索</li><li><kbd>E</kbd> 编辑当前卡片</li>
+        <li><kbd>N</kbd> 记录闪念</li><li><kbd>/</kbd> 或 <kbd>${MOD}F</kbd> 搜索</li><li><kbd>E</kbd> 编辑当前卡片</li>
         <li><kbd>C</kbd> 续写</li><li><kbd>B</kbd> 分支</li><li><kbd>J</kbd>/<kbd>K</kbd> 下一张/上一张</li>
-        <li><kbd>G</kbd> 关系图</li><li><kbd>A</kbd> AI 助手</li><li><kbd>R</kbd> 随机漫步</li><li><kbd>⌘S</kbd> 保存</li>
+        <li><kbd>G</kbd> 关系图</li><li><kbd>A</kbd> AI 助手</li><li><kbd>R</kbd> 随机漫步</li><li><kbd>${MOD}S</kbd> 保存</li>
       </ul>
     </section>
   </div>`;
@@ -597,7 +600,7 @@ function currentCard() {
 }
 
 async function onMainClick(e) {
-  const th = e.target.closest('[data-theme]');
+  const th = e.target.closest('button[data-theme]'); // not <html data-theme>
   if (th) {
     lsSet('zk.theme', th.dataset.theme);
     applyTheme();
@@ -793,7 +796,7 @@ function openCapture() {
   if (document.querySelector('.modal-wrap')) return;
   openModal(`<h2>记录闪念</h2>
     <textarea class="capture" rows="6" placeholder="写下想法，稍后再整理…"></textarea>
-    <div class="actions"><button type="button" class="primary" data-ok>保存 <kbd>⌘↵</kbd></button><button type="button" data-close>取消</button></div>`, {
+    <div class="actions"><button type="button" class="primary" data-ok>保存 <kbd>${MOD}↵</kbd></button><button type="button" data-close>取消</button></div>`, {
     onMount(m, close) {
       const ta = $('textarea', m);
       ta.focus();
@@ -999,7 +1002,7 @@ function mountEditor(card, opts = {}) {
     <div class="field"><label>关键词 <small>逗号或顿号分隔；出现在“索引”里</small></label><input name="keywords" value="${esc(v.keywords)}" list="kw-list">
       <datalist id="kw-list">${[...index().keywords.keys()].map((k) => `<option value="${esc(k)}">`).join('')}</datalist></div>
     <p class="err" role="alert"></p>
-    <div class="actions sticky"><button class="primary" type="submit">保存 <kbd>⌘S</kbd></button><button type="button" data-ed="cancel">取消</button></div>
+    <div class="actions sticky"><button class="primary" type="submit">保存 <kbd>${MOD}S</kbd></button><button type="button" data-ed="cancel">取消</button></div>
   </form>`;
 
   const form = $('#editor');

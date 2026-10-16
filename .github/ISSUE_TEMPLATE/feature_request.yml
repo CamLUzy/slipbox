@@ -1,0 +1,22 @@
+name: 功能建议
+description: 一个能让卡片盒更好用的想法
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的问题
+      description: 现在做什么事情不方便？
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎么解决
+    validations:
+      required: true
+  - type: textarea
+    id: luhmann
+    attributes:
+      label: 和卢曼方法的关系（可选）
+      description: 它是让卡片盒更接近卢曼的做法，还是一种新的用法？

@@ -2,10 +2,34 @@
 // through the `zk` message handler; in a plain browser they go to IndexedDB.
 import { lsGet, lsSet } from './util.js';
 
-const native = window.webkit?.messageHandlers?.zk;
+// Mac app: WKWebView message handler. Windows app (src-tauri): the same messages go to the
+// `zk` Tauri command, which answers exactly like the Swift bridge.
+const tauri = window.__TAURI__?.core;
+const native = window.webkit?.messageHandlers?.zk || (tauri && { postMessage: (msg) => tauri.invoke('zk', { msg }) });
 const DEFAULT_BOX = '我的卡片盒';
 
 export const isNative = !!native;
+export const platform = window.webkit?.messageHandlers?.zk ? 'mac' : tauri ? 'tauri' : 'web';
+
+if (platform === 'tauri') {
+  // External links open in the default browser instead of inside the app window.
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a[href]');
+    const href = a?.getAttribute('href') || '';
+    if (/^(https?:|mailto:)/i.test(href)) {
+      e.preventDefault();
+      tauri.invoke('zk', { msg: { cmd: 'openUrl', url: href } });
+    }
+  }, true);
+  // The window title follows the page title (the Mac app does this through KVO).
+  const sendTitle = () => tauri.invoke('zk', { msg: { cmd: 'title', title: document.title } }).catch(() => {});
+  const watchTitle = () => {
+    const t = document.querySelector('title');
+    if (t) new MutationObserver(sendTitle).observe(t, { childList: true, characterData: true, subtree: true });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchTitle);
+  else watchTitle();
+}
 
 export const call = (cmd, args = {}) => native.postMessage({ cmd, ...args });
 
