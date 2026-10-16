@@ -121,6 +121,7 @@ export function renderNetwork(nodes, edges, { legend = '', spread = 1, height } 
   return `<div class="graph-wrap"${height ? ` style="--gh:${height}"` : ''}>
     <svg class="graph${nodes.length > 40 ? ' g-dense' : ''}" viewBox="${vb.join(' ')}" data-vb="${vb.join(' ')}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="关系图">${lines}${dots}</svg>
     <div class="g-tools"><button type="button" data-g="in" aria-label="放大">＋</button><button type="button" data-g="out" aria-label="缩小">－</button><button type="button" data-g="fit">适应</button></div>
+    <div class="g-hint">点一下卡片看它的联系，再点一下打开 · 双指缩放</div>
   </div>
   <div class="g-legend">${legend || '<span class="lg lg-seq"></span>序列（上级/分支）<span class="lg lg-link"></span>链接<span class="lg lg-cite"></span>文献引用'}</div>`;
 }
@@ -140,7 +141,7 @@ export function renderGraph(center, ix) {
 
 export { nodeLabel };
 
-// Drag to pan, wheel / buttons to zoom. Call after the SVG is in the document.
+// Drag to pan, wheel / pinch / buttons to zoom. Call after the SVG is in the document.
 export function attachPanZoom(root) {
   for (const wrap of root.querySelectorAll('.graph-wrap')) {
     const svg = wrap.querySelector('svg');
@@ -148,10 +149,11 @@ export function attachPanZoom(root) {
     const home = svg.dataset.vb.split(' ').map(Number);
     let vb = [...home];
     const apply = () => svg.setAttribute('viewBox', vb.map((v) => v.toFixed(1)).join(' '));
-    const zoom = (k, cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2) => {
-      const w = Math.min(Math.max(vb[2] * k, home[2] / 8), home[2] * 3);
-      const h = (w / vb[2]) * vb[3];
-      vb = [cx - ((cx - vb[0]) * w) / vb[2], cy - ((cy - vb[1]) * h) / vb[3], w, h];
+    // zoom by k around (cx, cy), starting from `from` (the current view by default)
+    const zoom = (k, cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2, from = vb) => {
+      const w = Math.min(Math.max(from[2] * k, home[2] / 8), home[2] * 3);
+      const h = (w / from[2]) * from[3];
+      vb = [cx - ((cx - from[0]) * w) / from[2], cy - ((cy - from[1]) * h) / from[3], w, h];
       apply();
     };
     const toSvg = (e) => {
@@ -166,19 +168,45 @@ export function attachPanZoom(root) {
       zoom(Math.exp(e.deltaY * 0.0015), x, y);
     }, { passive: false });
     let drag = null;
+    let pinch = null;
+    const touches = new Map(); // pointerId -> {clientX, clientY}
+    const spread = () => {
+      const [a, b] = [...touches.values()];
+      return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mid: { clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 } };
+    };
     svg.addEventListener('pointerdown', (e) => {
+      touches.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+      if (touches.size === 2) { // two fingers: pinch to zoom
+        const { d, mid } = spread();
+        const [cx, cy] = toSvg(mid);
+        pinch = { d, cx, cy, vb: [...vb] };
+        drag = null;
+        return;
+      }
       if (e.target.closest('.g-node')) return;
       drag = { x: e.clientX, y: e.clientY, vb: [...vb], s: toSvg(e)[2], moved: false };
       svg.setPointerCapture(e.pointerId);
     });
     svg.addEventListener('pointermove', (e) => {
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+      if (pinch && touches.size >= 2) {
+        const { d } = spread();
+        if (d > 10) zoom(pinch.d / d, pinch.cx, pinch.cy, pinch.vb);
+        return;
+      }
       if (!drag) return;
       const dx = (e.clientX - drag.x) * drag.s, dy = (e.clientY - drag.y) * drag.s;
       if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
       vb = [drag.vb[0] - dx, drag.vb[1] - dy, vb[2], vb[3]];
       apply();
     });
-    svg.addEventListener('pointerup', () => { drag = null; });
+    const lift = (e) => {
+      touches.delete(e.pointerId);
+      if (touches.size < 2) pinch = null;
+      drag = null;
+    };
+    svg.addEventListener('pointerup', lift);
+    svg.addEventListener('pointercancel', lift);
     wrap.querySelector('.g-tools').addEventListener('click', (e) => {
       const b = e.target.closest('[data-g]')?.dataset.g;
       if (b === 'in') zoom(0.7);
@@ -190,6 +218,8 @@ export function attachPanZoom(root) {
 
 // Hovering a node highlights it, its direct neighbours and the edges between them;
 // everything else fades out. In dense graphs titles only show for highlighted nodes.
+// Touch screens have no hover: the first tap on a node highlights it (and does not open the
+// card), a second tap on the same node opens it, a tap on the background clears.
 function attachHover(svg) {
   const nodes = new Map([...svg.querySelectorAll('.g-node')].map((n) => [n.dataset.uid, n]));
   const edgesOf = new Map();
@@ -217,14 +247,26 @@ function attachHover(svg) {
       nodes.get(line.dataset.a === id ? line.dataset.b : line.dataset.a)?.classList.add('hl');
     }
   };
+  let touch = false;
+  svg.addEventListener('pointerdown', (e) => { touch = e.pointerType !== 'mouse'; }, true);
   svg.addEventListener('pointerover', (e) => {
-    if (e.buttons) return; // panning
+    if (e.pointerType !== 'mouse' || e.buttons) return; // touch, or panning
     const n = e.target.closest('.g-node');
     if (n) focus(n.dataset.uid);
   });
   svg.addEventListener('pointerout', (e) => {
+    if (e.pointerType !== 'mouse') return;
     const n = e.target.closest('.g-node');
     if (n && !n.contains(e.relatedTarget)) clear();
   });
-  svg.addEventListener('pointerleave', clear);
+  svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') clear(); });
+  svg.addEventListener('click', (e) => {
+    if (!touch) return;
+    const n = e.target.closest('.g-node');
+    if (!n) return clear();
+    if (current === n.dataset.uid) return; // second tap: let the card open
+    e.stopPropagation();
+    e.preventDefault();
+    focus(n.dataset.uid);
+  }, true);
 }

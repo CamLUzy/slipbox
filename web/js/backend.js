@@ -12,6 +12,15 @@ export const isNative = !!native;
 const appleTouch = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 export const platform = window.webkit?.messageHandlers?.zk ? (appleTouch ? 'ios' : 'mac') : tauri ? 'tauri' : 'web';
 
+if (platform === 'ios') {
+  // An app, not a web page: the whole UI never zooms (the graph has its own pinch zoom),
+  // and iOS cannot zoom into a field and stay zoomed in.
+  document.querySelector('meta[name=viewport]')?.setAttribute('content',
+    'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+  // after the keyboard closes iOS can leave the page shifted sideways
+  document.addEventListener('focusout', () => setTimeout(() => { if (window.scrollX) window.scrollTo(0, window.scrollY); }, 120));
+}
+
 if (platform === 'tauri') {
   // External links open in the default browser instead of inside the app window.
   document.addEventListener('click', (e) => {

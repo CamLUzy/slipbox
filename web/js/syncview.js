@@ -31,6 +31,7 @@ const st = {
   error: '',
   task: null, // what the panel shows: { kind: 'connecting' | 'pair' | 'plan' | 'running' | 'done' | 'error', ... }
   prompt: null, // the other device asks to pair: { id, code, peer }
+  renaming: false,
   hosting: null, // the other device is syncing with this one: { peer }
 };
 
@@ -70,6 +71,7 @@ export function leave() {
 }
 
 function onEvent(e) {
+  if (st.renaming && e.type === 'state') { st.info = e.state; return; } // keep what is being typed
   switch (e.type) {
     case 'state': st.info = e.state; break;
     case 'pair': st.prompt = { id: e.id, code: e.code, peer: e.peer }; break;
@@ -97,11 +99,13 @@ function paint() {
     ${st.error ? `<p class="err">${esc(st.error)}</p>` : ''}
     ${panel()}
     <section><h2>本机</h2>
-      <div class="sync-me">
+      ${st.renaming ? `<form class="sync-me sync-rename"><input name="name" value="${esc(info?.device.name || '')}" maxlength="40" autocapitalize="off" aria-label="设备名称">
+          <button type="submit" class="primary">保存</button><button type="button" data-sync="rename-cancel">取消</button></form>`
+        : `<div class="sync-me">
         <div><b>${esc(info?.device.name || '…')}</b> <span class="muted small">${esc(PLATFORM[info?.device.platform] || '')}</span>
           <div class="muted small">${info?.listening ? `<i class="dot on"></i>其他设备现在可以找到这台设备${addr ? ` · 地址 ${addr}` : ''}` : '<i class="dot"></i>正在启动…'}</div></div>
         <button type="button" data-sync="rename">改名</button>
-      </div>
+      </div>`}
     </section>
     <section><h2>附近的设备</h2>
       ${nearby.length ? `<div class="rows">${nearby.map((d) => `<div class="sync-dev">
@@ -226,13 +230,23 @@ function bind(root) {
       st.info = await sync.forget(b.dataset.peer);
       return paint();
     }
-    if (act === 'rename') {
-      const name = prompt('这台设备在其他设备上显示的名字', st.info?.device.name || '');
-      if (!name) return;
-      try { st.info = await sync.rename(name.trim()); } catch (ex) { H.toast(ex.message || String(ex), 'warn'); }
-      return paint();
+    if (act === 'rename' || act === 'rename-cancel') {
+      st.renaming = act === 'rename';
+      paint();
+      $('.sync-rename input', root)?.select();
+      return;
     }
   };
+  const rename = $('.sync-rename', root);
+  if (rename) {
+    rename.onsubmit = async (e) => {
+      e.preventDefault();
+      const name = rename.name.value.trim();
+      if (!name) return;
+      try { st.info = await sync.rename(name); st.renaming = false; } catch (ex) { H.toast(ex.message || String(ex), 'warn'); }
+      paint();
+    };
+  }
   const form = $('.sync-addr', root);
   if (form) {
     form.onsubmit = (e) => {

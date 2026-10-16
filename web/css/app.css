@@ -43,6 +43,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -375,6 +376,7 @@ line[class*="g-rel-"] { stroke: var(--rel); }
 .rel-item { display: flex; gap: 10px; align-items: flex-start; background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px 12px; }
 .rel-item > button, .rel-item > .muted { flex-shrink: 0; margin-top: 4px; font-size: 13px; }
 .rel-main { flex: 1; min-width: 0; }
+.rel-main { flex: 1; min-width: 0; }
 .rel-main .row { padding: 3px 0; }
 .rel-main .row:hover { background: none; }
 .rel-tag { flex-shrink: 0; margin-top: 6px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; color: #fff; background: var(--rel, var(--ink-3)); }
@@ -531,3 +533,14 @@ line[class*="g-rel-"] { stroke: var(--rel); }
 .otd { margin-bottom: 12px; }
 .otd-when { display: inline-block; font-size: 13px; margin: 2px 0 6px; color: var(--ink-2); }
 .otd .rows { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; }
+
+/* ---------- touch screens ---------- */
+.g-hint { display: none; position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: var(--ink-3); background: color-mix(in srgb, var(--paper) 85%, transparent); padding: 2px 8px; border-radius: 6px; pointer-events: none; }
+@media (hover: none) {
+  .g-hint { display: block; }
+}
+@media (pointer: coarse) {
+  /* iOS zooms into any field under 16px and does not zoom back out */
+  input, textarea, select { font-size: 16px !important; }
+}
+.sync-rename input { flex: 1; min-width: 0; }

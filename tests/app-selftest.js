@@ -30,4 +30,12 @@ out.cardTitle = document.querySelector('.sheet-head h1')?.textContent;
 out.links = [...document.querySelectorAll('.md .zl')].map((a) => `${a.textContent}->${a.getAttribute('href') || 'broken'}`);
 out.docTitle = document.title;
 out.tree = [...document.querySelectorAll('.tree-row .zid')].map((e) => e.textContent);
+// iPhone: the page itself never zooms, and fields are at least 16px (or iOS zooms into them)
+out.viewport = document.querySelector('meta[name=viewport]')?.content;
+const probe = document.createElement('div');
+probe.className = 'chat-input';
+probe.innerHTML = '<textarea></textarea>';
+document.body.append(probe);
+out.fieldFont = getComputedStyle(probe.firstChild).fontSize;
+probe.remove();
 return JSON.stringify(out, null, 1);

@@ -213,7 +213,7 @@ jobs:
           sys.exit(0 if eval(sys.argv[2]) else 1)
           PY
           }
-          run_selftest app-selftest "r['native'] and len(r['persisted']) == 3 and r['cardTitle'] == '第一张'"
+          run_selftest app-selftest "r['native'] and len(r['persisted']) == 3 and r['cardTitle'] == '第一张' and 'user-scalable=no' in r['viewport'] and r['fieldFont'] == '16px'"
           run_selftest app-boxes-selftest "r['platform'] == 'ios' and r['renamedCards'] == 1 and len(r['afterDelete']) == 1 and r['badName'] != 'accepted'"
       - name: Screenshots
         run: |
