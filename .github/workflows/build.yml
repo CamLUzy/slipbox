@@ -19,7 +19,7 @@ jobs:
     name: unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 45
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -108,7 +108,7 @@ jobs:
     timeout-minutes: 45
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: bash mac/build.sh
       - name: Self-test the packaged app
@@ -164,7 +164,7 @@ jobs:
     timeout-minutes: 45
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Generate the Xcode project
         run: |
           brew install xcodegen
@@ -267,7 +267,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           path: out
