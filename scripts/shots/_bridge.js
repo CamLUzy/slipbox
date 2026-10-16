@@ -29,7 +29,14 @@
       if (i >= 0) list[i] = c; else list.push(c);
     }
   };
+  // window.MOCK_MODE: 'plan' = first sync with boxes to choose, 'pair' = not paired yet
+  const mode = window.MOCK_MODE || '';
   const op = (list, me, m) => {
+    if (m.op === 'hello' && mode === 'plan') {
+      return list === local
+        ? { ok: true, device: me, boxes: [{ name: BOX, boxId: 'box-2', cards: list.length }, { name: '数据库课程', boxId: 'box-3', cards: 93 }, { name: '读书笔记', boxId: 'box-4', cards: 0 }] }
+        : { ok: true, device: me, boxes: [{ name: BOX, boxId: 'box-1', cards: list.length }, { name: '我的卡片盒', boxId: 'box-5', cards: 12 }] };
+    }
     if (m.op === 'hello') return { ok: true, device: me, boxes: [{ name: BOX, boxId: 'box-1', cards: list.length }] };
     if (m.op === 'read') return { ok: true, boxId: 'box-1', lastSync: now - day, purged: [], cards: copy(list) };
     if (m.op === 'write') {
@@ -44,15 +51,17 @@
     switch (msg.cmd) {
       case 'load': return json(local);
       case 'put': upsert(local, JSON.parse(msg.cards)); return true;
-      case 'boxes': return json({ current: BOX, boxes: [{ name: BOX, cards: -1 }] });
+      case 'boxes': return json({ current: BOX, boxes: [{ name: BOX, cards: -1 }, { name: '数据库课程', cards: 93 }, { name: '读书笔记', cards: 12 }] });
       case 'info': return json({ dataPath: `~/Library/Application Support/卡片盒/boxes/${BOX}.db`, backups: [], native: true, box: BOX });
       case 'ollama': return json({ error: 'offline' });
       case 'startOllama': return false;
       case 'sync':
         switch (msg.op) {
           case 'state': case 'start': return json(state);
-          case 'connect': return json({ session: 's1', code: '482913', peer: iphone, paired: true });
-          case 'request': return json(op(remote, iphone, JSON.parse(msg.msg)));
+          case 'connect': return json({ session: 's1', code: '482913', peer: iphone, paired: mode !== 'pair' });
+          case 'request':
+            if (JSON.parse(msg.msg).op === 'pair') return new Promise(() => {}); // the other side has not confirmed yet
+            return json(op(remote, iphone, JSON.parse(msg.msg)));
           case 'local': return json(op(local, device, JSON.parse(msg.msg)));
           default: return json({ ok: true });
         }

@@ -85,6 +85,8 @@ async function boot() {
   onChange(() => av.cheer(toast));
   window.addEventListener('hashchange', route);
   document.addEventListener('keydown', onKey);
+  // the iPhone opens on the list of all slip boxes; you step into one from there
+  if (backend.platform === 'ios' && !location.hash) history.replaceState(null, '', '#/boxes');
   route();
   aiv.refreshStatus(); // only asks Ollama what is loaded; never loads the model
   backend.info().then((i) => (ui.info = i)).catch(() => {});
@@ -136,7 +138,8 @@ function renderShell() {
   </div>
   <div id="toasts" aria-live="polite"></div>`;
   $('#btn-capture').onclick = openCapture;
-  $('#box-btn').onclick = openBoxes;
+  // iPhone: back to the list of all slip boxes; elsewhere the box switcher dialog
+  $('#box-btn').onclick = backend.platform === 'ios' ? () => { location.hash = '#/boxes'; } : openBoxes;
   $('#q').addEventListener('input', (e) => {
     ui.query = e.target.value;
     renderSide();
@@ -213,9 +216,11 @@ function renderMain() {
     case 'sync': html = syncv.view(); break;
     case 'stats': html = av.viewStats(); break;
     case 'day': html = av.viewDay(a); break;
+    case 'boxes': html = viewAllBoxes(); break;
     default: html = viewHome();
   }
-  main.innerHTML = topbar() + html;
+  main.innerHTML = (r === 'boxes' ? '' : topbar()) + html;
+  if (r === 'boxes') fillAllBoxes();
   if (r === 'ai') aiv.mount(main, ui.main);
   if (r === 'sync') syncv.mount(main);
   else syncv.leave();
@@ -632,6 +637,8 @@ function currentCard() {
 }
 
 async function onMainClick(e) {
+  const box = e.target.closest('[data-open-box]');
+  if (box) return openBox(box.dataset.openBox);
   const th = e.target.closest('button[data-theme]'); // not <html data-theme>
   if (th) {
     lsSet('zk.theme', th.dataset.theme);
@@ -756,6 +763,51 @@ async function importJson() {
   }
   const r = await importCards(list);
   toast(`已导入 ${r.cards.length} 张卡片${r.toInbox ? `，其中 ${r.toInbox} 张因编号冲突放进了收件箱` : ''}`, r.toInbox ? 'warn' : 'info');
+}
+
+// ---------- all slip boxes: the iPhone's start page ----------
+
+function viewAllBoxes() {
+  return `<div class="page all-boxes">
+    <h1>卡片盒</h1>
+    <p class="muted">每个卡片盒是一个独立的数据库，编号、链接、索引都各自独立，适合按课程或项目分开。</p>
+    <div class="box-cards" id="box-cards"></div>
+    <form class="box-new" id="box-new"><input name="name" placeholder="新卡片盒的名字，例如 数据库课程" maxlength="60" autocapitalize="off">
+      <button type="submit" class="primary">新建</button></form>
+    <p class="err" role="alert"></p>
+    <div class="actions"><button type="button" data-act="boxes">重命名或删除…</button><a class="btn" href="#/sync">设备与同步</a><a class="btn" href="#/settings">设置与数据</a></div>
+  </div>`;
+}
+
+async function fillAllBoxes() {
+  let data;
+  try { data = await backend.boxes(); } catch (e) { return toast(`无法读取卡片盒列表：${e.message || e}`, 'error'); }
+  const el = $('#box-cards');
+  if (!el) return;
+  el.innerHTML = data.boxes.map((b) => {
+    const cur = b.name === data.current;
+    const n = cur ? S.cards.size - index().trash.length : b.cards;
+    return `<button type="button" class="box-card${cur ? ' current' : ''}" data-open-box="${esc(b.name)}">
+      ${logo()}<span class="box-card-text"><b>${esc(b.name)}</b><span class="muted small">${n} 张卡片${cur ? ' · 上次打开' : ''}</span></span><span class="box-card-go">›</span></button>`;
+  }).join('');
+  const form = $('#box-new');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = form.name.value.trim();
+    if (!name) return;
+    try { await backend.createBox(name); location.hash = '#/list/tree'; location.reload(); } catch (ex) { $('.all-boxes .err').textContent = ex.message || String(ex); }
+  };
+}
+
+async function openBox(name) {
+  if (name === ui.box) { location.hash = '#/list/tree'; return; }
+  try {
+    await backend.switchBox(name);
+    location.hash = '#/list/tree';
+    location.reload();
+  } catch (e) {
+    toast(e.message || String(e), 'error');
+  }
 }
 
 async function openBoxes() {

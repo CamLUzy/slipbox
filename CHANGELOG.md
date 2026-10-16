@@ -2,6 +2,17 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.2] - 2026-10-16
+
+### 改进
+
+- iPhone / iPad 打开应用先到“全部卡片盒”首页，点一个卡片盒再进去；在卡片盒里点左上角的名字回到这里。
+- README 和 Release 里加了 1 分钟的产品介绍视频。
+
+### 修复
+
+- 同步时“同步哪些卡片盒”的列表排版错乱（勾选框占满整行，文字挤成一条），Mac 和 iPhone 都受影响。
+
 ## [1.2.1] - 2026-10-16
 
 ### 修复（iPhone / iPad）

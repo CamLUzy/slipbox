@@ -7,7 +7,10 @@
 Permanent card IDs, links and backlinks, a keyword register, relation graphs and a local AI,<br>
 on Windows, macOS and iPhone / iPad, with every card kept on your own devices.
 
-[Download](https://github.com/CamLUzy/slipbox/releases/latest) · [中文说明](README.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
+[Download](https://github.com/CamLUzy/slipbox/releases/latest) · [Intro video](https://github.com/CamLUzy/slipbox/releases/download/v1.2.1/Slipbox-intro.mp4) · [中文说明](README.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md)
+
+<a href="https://github.com/CamLUzy/slipbox/releases/download/v1.2.1/Slipbox-intro.mp4"><img src="assets/video-poster.png" alt="One-minute intro video" width="640"></a><br>
+<sub>A one-minute intro (MP4, about 15 MB, in Chinese)</sub>
 
 </div>
 

@@ -1,6 +1,6 @@
 {
   "name": "slipbox",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "卡片盒：卢曼卡片笔记应用，Windows、macOS 与 iPhone，数据保存在自己的设备上",
   "type": "module",
   "private": true,

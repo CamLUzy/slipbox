@@ -17,6 +17,7 @@
 [下载 Windows 版](https://github.com/CamLUzy/slipbox/releases/latest) ·
 [下载 macOS 版](https://github.com/CamLUzy/slipbox/releases/latest) ·
 [iPhone 版](docs/IOS.md) ·
+[介绍视频](https://github.com/CamLUzy/slipbox/releases/download/v1.2.1/Slipbox-intro.mp4) ·
 [使用指南](docs/README.md) ·
 [示例卡片盒](docs/demo/demo-box.json) ·
 [路线图](ROADMAP.md) ·
@@ -24,6 +25,9 @@
 [English](README.en.md)
 
 </div>
+
+<p align="center"><a href="https://github.com/CamLUzy/slipbox/releases/download/v1.2.1/Slipbox-intro.mp4"><img src="assets/video-poster.png" alt="1 分钟产品介绍视频" width="720"></a><br>
+<sub><b>1 分钟看懂卡片盒</b> · 点图片下载视频（MP4，约 15 MB）· 画面由代码逐帧生成，配乐程序合成，旁白由本地语音模型生成</sub></p>
 
 <table align="center">
 <tr>
