@@ -2,6 +2,15 @@
 
 支持 iOS / iPadOS 16 及以上。界面和桌面版是同一份代码，手机上是底部标签栏的单栏布局，iPad 横屏时是双栏布局。
 
+<table align="center">
+<tr>
+<td align="center"><img src="../assets/screenshots/ios-list.png" alt="编号树" width="180"><br><sub>编号树</sub></td>
+<td align="center"><img src="../assets/screenshots/ios-card.png" alt="卡片" width="180"><br><sub>卡片</sub></td>
+<td align="center"><img src="../assets/screenshots/ios-graph.png" alt="关系图" width="180"><br><sub>关系图</sub></td>
+<td align="center"><img src="../assets/screenshots/ios-index.png" alt="关键词索引" width="180"><br><sub>关键词索引</sub></td>
+</tr>
+</table>
+
 ## 安装
 
 卡片盒没有上架 App Store（需要付费开发者账号），所以 iPhone 版需要自己装。下面两种方式任选一种，都只需要一个免费的 Apple ID。

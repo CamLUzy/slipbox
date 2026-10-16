@@ -30,6 +30,15 @@ register gave entry points into trains of thought. Slipbox brings exactly that t
 - One SQLite file per slip box, the same format on macOS and Windows, daily backups, JSON and
   Markdown export. No account, no server, no telemetry.
 
+<table align="center">
+<tr>
+<td align="center"><img src="assets/screenshots/ios-list.png" alt="Number tree" width="180"><br><sub>Number tree</sub></td>
+<td align="center"><img src="assets/screenshots/ios-card.png" alt="Card" width="180"><br><sub>Card</sub></td>
+<td align="center"><img src="assets/screenshots/ios-graph.png" alt="Graph" width="180"><br><sub>Graph</sub></td>
+<td align="center"><img src="assets/screenshots/ios-index.png" alt="Keyword index" width="180"><br><sub>Keyword index</sub></td>
+</tr>
+</table>
+
 ## Install
 
 From the [latest release](https://github.com/CamLUzy/slipbox/releases/latest):

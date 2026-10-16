@@ -68,9 +68,23 @@ AI 只在你点 AI 按钮时才在本机启动，它可以帮你整理闪念、�
 
 <p align="center"><img src="assets/screenshots/organize.png" alt="AI 整理一条闪念" width="640"><br><sub>AI 整理：把一条闪念改写成永久卡片，并建议它在卡片盒里的位置</sub></p>
 
+**iPhone / iPad**
+
+- 同一份界面，手机上是底部标签栏的单栏布局；数据在“文件”App 里看得到。
+- AI 可以连接同一个 Wi-Fi 下电脑上的 Ollama。
+
+<table align="center">
+<tr>
+<td align="center"><img src="assets/screenshots/ios-list.png" alt="编号树" width="180"><br><sub>编号树</sub></td>
+<td align="center"><img src="assets/screenshots/ios-card.png" alt="卡片" width="180"><br><sub>卡片</sub></td>
+<td align="center"><img src="assets/screenshots/ios-graph.png" alt="关系图" width="180"><br><sub>关系图</sub></td>
+<td align="center"><img src="assets/screenshots/ios-index.png" alt="关键词索引" width="180"><br><sub>关键词索引</sub></td>
+</tr>
+</table>
+
 **你的数据**
 
-- 每个卡片盒是一个 SQLite 文件，Mac 和 Windows 格式相同，可以直接拷过去用。
+- 每个卡片盒是一个 SQLite 文件，Mac、Windows、iPhone 格式相同，可以直接拷过去用。
 - 每天自动备份，保留 30 份；随时导出 JSON 或一个文件夹的 Markdown（带 front matter，Obsidian 等可以打开）。
 
 ## 下载与安装
