@@ -28,7 +28,7 @@ trash = "5"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 base64 = "0.23.1"
 sha2 = "0.10.9"
-snow = "0.9"
+snow = "0.10"
 mdns-sd = "0.21.5"
 if-addrs = "0.15.0"
 uuid = { version = "1.20.0", features = ["v4"] }
